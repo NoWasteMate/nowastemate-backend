@@ -16,15 +16,19 @@ async def root():
 
 #Ref for setup https://medium.com/@cbrannen/importing-data-into-firestore-using-python-dce2d6d3cd51
 #https://rollout.com/integration-guides/firestore/sdk/step-by-step-guide-to-building-a-firestore-api-integration-in-python
-cred = credentials.Certificate("../nowastemate-firebase-firebase-adminsdk-fbsvc-260a57ac1d.json")
+cred = credentials.Certificate("firebase-admin.json")
 
-dbInit = firebase_admin.initialize_app(cred)
+db_init = firebase_admin.initialize_app(cred)
 
 store = firestore.client()
 
 class User(BaseModel):
     first: str
     last: str
+    email: str
+    password: str
+
+class log_in(BaseModel):
     email: str
     password: str
 
@@ -61,3 +65,23 @@ async def create_user(user: User):
             'items': []
         })
 
+
+@app.post("/login")
+async def login(user: log_in):
+    doc_ref = store.collection("users").document(user.email)
+
+    doc = doc_ref.get()
+
+    if doc.exists:
+        user_data = doc.to_dict()
+
+        print(user_data["password"])
+        print(user.password)
+
+        #https://www.w3schools.com/python/python_json.asp 
+        if user_data["password"] == user.password:
+            return user.email
+        else:
+            return {"message": "Incorrect password"}
+    else:
+        return {"message": "User not found"}
