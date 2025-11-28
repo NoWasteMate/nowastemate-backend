@@ -4,6 +4,7 @@ import firebase_admin
 from firebase_admin import credentials, auth, firestore
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi import FastAPI
+from models.Product import Product, ProductList
 
 
 app = FastAPI()
@@ -45,17 +46,29 @@ def sync_user_info(user = Depends(get_current_user)):
     email = user['email']
 
     doc_ref = store.collection("users").document(uid)
+    # TODO (nesting a collection with our user's document (still need to set it))
+    # products_ref = store.collection("users").document(uid).collection("products")
 
     doc = doc_ref.get()
 
-    if doc.exists:
-        return {"message": "User already exists"}
-    else: 
-        doc_ref = store.collection('users').document(uid)
-        doc_ref.set({
-            'email': email,
-            'createdAt': firestore.SERVER_TIMESTAMP,
-        })
+
+    # if doc.exists:
+    #     return {"message": "User already exists"}
+    # else: 
+    #     #doc_ref = store.collection('users').document(uid)
+    #     doc_ref.set({
+    #         'email': email,
+    #         'createdAt': firestore.SERVER_TIMESTAMP,
+    #     })
+    #     products_ref.set({
+    #         'products': [],
+    #         'createdAt': firestore.SERVER_TIMESTAMP
+    #     })
+
+    doc_ref.set({
+        'email': email,
+        'createdAt': firestore.SERVER_TIMESTAMP,
+    })
 
     return {'success': f"{email} user created"}
 
@@ -64,3 +77,67 @@ def get_user_information(user = Depends(get_current_user)):
     print(get_current_user)
     return {"uid": user["uid"], "email": user['email']}
 
+# PRODUCTS 
+#TODO adds an empty product list to user object (does not work at the moment)
+# @app.post("/addProductList")
+# def add_product_list(user = Depends(get_current_user)):
+
+#     uid = user['uid']
+#     email = user['email']
+
+#     product_ref = store.collection("users").document(uid)
+
+#     product_db = product_ref.get()
+
+#     if product_db.exists:
+#         return {"message": "User already exists"}
+#     else: 
+#         product_ref = store.collection('users').document(uid)
+#         product_ref.add({
+#             'email': email,
+#             'createdAt': firestore.SERVER_TIMESTAMP,
+#         })
+
+#     return
+
+@app.post("/products")
+def add_product(product: Product, user = Depends(get_current_user)):
+    uid = user["uid"]
+
+    # this is used to make the collection 
+    products_ref = (
+        store.collection("users")
+        .document(uid)
+        .collection("products")
+    )
+
+    doc_ref = products_ref.document()
+
+    doc_ref.set({
+        **product.model_dump(),
+        "createdAt": firestore.SERVER_TIMESTAMP,
+    })
+
+    return {"id": doc_ref.id, "message": "Product added"}
+
+# Want to make a get request to get the information of all products
+# https://stackoverflow.com/questions/62203845/firestore-list-subcollections-of-a-document-using-python
+@app.get("/getProducts")
+def get_product(user = Depends(get_current_user)):
+    uid = user["uid"]
+
+    products_ref = (
+        store.collection("users")
+        .document(uid)
+        .collection("products")
+    )
+
+    #https://firebase.google.com/docs/firestore/query-data/get-data
+    #https://firebase.google.com/docs/firestore/query-data/get-data#get_all_documents_in_a_collection
+    products_document = products_ref.stream()
+
+    products = []
+    for document in products_document:
+        products.append({"id": document.id, **document.to_dict()})
+
+    return products
