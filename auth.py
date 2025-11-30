@@ -150,20 +150,20 @@ def post_family(family: Family, user = Depends(get_current_user)):
     uid = user["uid"]
 
     doc_ref.set({
-        'title': family.title,
-        'createdBy': uid,
-        'createdAt': firestore.SERVER_TIMESTAMP,
-        'members': [uid]
+        "title": family.title,
+        "createdBy": uid,
+        "createdAt": firestore.SERVER_TIMESTAMP,
+        "members": [uid]
     })
 
     user_doc_ref = store.collection("users").document(uid)
 
     #create the link to the family for the user - https://firebase.google.com/docs/firestore/manage-data/add-data#update-data
     user_doc_ref.update({
-        'familyId': doc_ref.id
+        "familyId": doc_ref.id
     })
 
-    return {'success': f"{family.title} family created"}
+    return {"success": f"{family.title} family created"}
 
 @app.get("/family/{family_id}")
 def get_family_by_id(family_id: str, user = Depends(get_current_user)):
@@ -184,7 +184,30 @@ def join_family(family_id: str, user = Depends(get_current_user)):
     doc_ref = store.collection("family").document(family_id)
 
     doc = doc_ref.get()
-    
-    members = doc['members']
 
-    return members
+    json = doc.to_dict()
+
+    members = json["members"]
+
+    new_member = user["uid"]
+
+    if new_member not in members:
+        members.append(new_member)
+
+        doc_ref.update({
+        "members": members
+        })
+
+        user_doc_ref = store.collection("users").document(new_member)
+
+        user_doc_ref.update({
+        "familyId": doc_ref.id
+        })
+        return {"success": "User added to family"}
+    else:
+        return {"error": "User already in family"}
+    
+    
+
+
+
