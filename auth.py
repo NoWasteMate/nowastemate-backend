@@ -150,7 +150,7 @@ def post_family(family: Family, user = Depends(get_current_user)):
     uid = user["uid"]
 
     doc_ref.set({
-        'name': family.family_name,
+        'title': family.title,
         'createdBy': uid,
         'createdAt': firestore.SERVER_TIMESTAMP,
         'members': [uid]
@@ -163,10 +163,10 @@ def post_family(family: Family, user = Depends(get_current_user)):
         'familyId': doc_ref.id
     })
 
-    return {'success': f"{family.family_name} family created"}
+    return {'success': f"{family.title} family created"}
 
 @app.get("/family/{family_id}")
-def get_family_by_id(family_id: str):
+def get_family_by_id(family_id: str, user = Depends(get_current_user)):
 
     doc_ref = store.collection("family").document(family_id)
 
@@ -176,3 +176,15 @@ def get_family_by_id(family_id: str):
         return doc.to_dict()
     else:
         print("Family does not exist!")
+
+
+@app.post("/family/join/{family_id}")
+def join_family(family_id: str, user = Depends(get_current_user)):
+
+    doc_ref = store.collection("family").document(family_id)
+
+    doc = doc_ref.get()
+    
+    members = doc['members']
+
+    return members
