@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Depends, status
+from fastapi import APIRouter, HTTPException, Depends, status, Body
 from pydantic import BaseModel
 import firebase_admin
 from firebase_admin import credentials, auth, firestore
@@ -100,6 +100,36 @@ def get_user_information(user = Depends(get_current_user)):
 #         })
 
 #     return
+
+# seedProducts is used to seed the user different kinds of products for testing.
+# Reference: https://firebase.google.com/docs/firestore/manage-data/transactions#batched-writes
+# Body from: https://fastapi.tiangolo.com/tutorial/body-fields/#import-field
+@app.post("/seedProducts")
+def seed_products(
+    products: list[Product] = Body(...),
+    user = Depends(get_current_user)
+):
+    user_uid = user["uid"]
+
+    doc_ref = store.collection("users").document(user_uid).collection("products")
+    
+    batch = store.batch()
+
+    for product in products:
+        prod_ref = doc_ref.collection(products).document()
+
+        batch.set(prod_ref, {
+            "name": product.name,
+            "quantity": product.quantity,
+            "createdAt": firestore.SERVER_TIMESTAMP,
+            "category": product.category
+        })
+
+    batch.commit()
+
+    return {
+        "message": "seed complete"
+    }
 
 @app.post("/products")
 def add_product(product: Product, user = Depends(get_current_user)):
