@@ -1,3 +1,6 @@
+# ❯ pip install "fastapi[standard]"
+# ❯ pip install firebase_admin
+# ❯ pip install pydantic
 from fastapi import APIRouter, HTTPException, Depends, status, Body
 from pydantic import BaseModel
 import firebase_admin
@@ -100,7 +103,6 @@ def get_user_information(user = Depends(get_current_user)):
 #         })
 
 #     return
-
 # seedProducts is used to seed the user different kinds of products for testing.
 # Reference: https://firebase.google.com/docs/firestore/manage-data/transactions#batched-writes
 # Body from: https://fastapi.tiangolo.com/tutorial/body-fields/#import-field
