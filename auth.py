@@ -5,7 +5,7 @@ from firebase_admin import credentials, auth, firestore
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi import FastAPI
 from models.Product import Product, ProductList
-
+from models.Family import Family
 
 app = FastAPI()
 
@@ -14,6 +14,7 @@ firebase_admin.initialize_app(cred)
 
 
 store = firestore.client()
+
 
 # Verify that user's token is valid -> decoded user information
 # https://medium.com/@yonaakio/understanding-firebase-id-token-verification-in-python-with-fastapi-18967b78a5b8
@@ -141,3 +142,20 @@ def get_product(user = Depends(get_current_user)):
         products.append({"id": document.id, **document.to_dict()})
 
     return products
+
+@app.post("/family")
+def postFamily(family: Family, user = Depends(get_current_user)):
+
+    doc_ref = store.collection("family").document()
+    uid = user["uid"]
+
+    doc = doc_ref.get()
+
+    doc_ref.set({
+        'name': family.family_name,
+        'createdBy': uid,
+        'createdAt': firestore.SERVER_TIMESTAMP,
+        'members': family.members
+    })
+
+    return {'success': f"{family.family_name} family created"}
