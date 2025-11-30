@@ -165,17 +165,30 @@ def post_family(family: Family, user = Depends(get_current_user)):
 
     return {"success": f"{family.title} family created"}
 
-@app.get("/family/{family_id}")
-def get_family_by_id(family_id: str, user = Depends(get_current_user)):
+@app.get("/family")
+def get_family_by_id(user = Depends(get_current_user)):
 
-    doc_ref = store.collection("family").document(family_id)
+    uid = user["uid"]
 
-    #https://firebase.google.com/docs/firestore/query-data/get-data#get_a_document
-    doc = doc_ref.get()
-    if doc.exists:
-        return doc.to_dict()
+    user_doc_ref = store.collection("users").document(uid)
+
+    user_doc = user_doc_ref.get()
+
+    user_doc = user_doc.to_dict()
+
+    if user_doc["familyId"] is not None:
+        fam_id = user_doc["familyId"]
+
+        doc_ref = store.collection("family").document(fam_id)
+
+        #https://firebase.google.com/docs/firestore/query-data/get-data#get_a_document
+        doc = doc_ref.get()
+        if doc.exists:
+            return doc.to_dict()
+        else:
+            return {"error": "Family not found"}
     else:
-        print("Family does not exist!")
+        return {"error": "User does not not have a family"}
 
 
 @app.post("/family/join/{family_id}")
