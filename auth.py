@@ -144,18 +144,35 @@ def get_product(user = Depends(get_current_user)):
     return products
 
 @app.post("/family")
-def postFamily(family: Family, user = Depends(get_current_user)):
+def post_family(family: Family, user = Depends(get_current_user)):
 
     doc_ref = store.collection("family").document()
     uid = user["uid"]
-
-    doc = doc_ref.get()
 
     doc_ref.set({
         'name': family.family_name,
         'createdBy': uid,
         'createdAt': firestore.SERVER_TIMESTAMP,
-        'members': family.members
+        'members': [uid]
+    })
+
+    user_doc_ref = store.collection("users").document(uid)
+
+    #create the link to the family for the user - https://firebase.google.com/docs/firestore/manage-data/add-data#update-data
+    user_doc_ref.update({
+        'familyId': doc_ref.id
     })
 
     return {'success': f"{family.family_name} family created"}
+
+@app.get("/family/{family_id}")
+def get_family_by_id(family_id: str):
+
+    doc_ref = store.collection("family").document(family_id)
+
+    #https://firebase.google.com/docs/firestore/query-data/get-data#get_a_document
+    doc = doc_ref.get()
+    if doc.exists:
+        return doc.to_dict()
+    else:
+        print("Family does not exist!")
