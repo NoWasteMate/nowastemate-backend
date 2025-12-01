@@ -1,4 +1,7 @@
-from fastapi import APIRouter, HTTPException, Depends, status
+# ❯ pip install "fastapi[standard]"
+# ❯ pip install firebase_admin
+# ❯ pip install pydantic
+from fastapi import APIRouter, HTTPException, Depends, status, Body
 from pydantic import BaseModel
 import firebase_admin
 from firebase_admin import credentials, auth, firestore
@@ -6,6 +9,7 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi import FastAPI
 from models.Product import Product, ProductList
 from models.Family import Family
+from models.FamilyJoinCode import FamilyJoinCode
 
 app = FastAPI()
 
@@ -100,6 +104,35 @@ def get_user_information(user = Depends(get_current_user)):
 #         })
 
 #     return
+# seedProducts is used to seed the user different kinds of products for testing.
+# Reference: https://firebase.google.com/docs/firestore/manage-data/transactions#batched-writes
+# Body from: https://fastapi.tiangolo.com/tutorial/body-fields/#import-field
+@app.post("/seedProducts")
+def seed_products(
+    products: list[Product] = Body(...),
+    user = Depends(get_current_user)
+):
+    user_uid = user["uid"]
+
+    doc_ref = store.collection("users").document(user_uid).collection("products")
+    
+    batch = store.batch()
+
+    for product in products:
+        prod_ref = doc_ref.collection(products).document()
+
+        batch.set(prod_ref, {
+            "name": product.name,
+            "quantity": product.quantity,
+            "createdAt": firestore.SERVER_TIMESTAMP,
+            "category": product.category
+        })
+
+    batch.commit()
+
+    return {
+        "message": "seed complete"
+    }
 
 @app.post("/products")
 def add_product(product: Product, user = Depends(get_current_user)):
@@ -191,10 +224,12 @@ def get_family_by_id(user = Depends(get_current_user)):
         return {"error": "User does not not have a family"}
 
 
-@app.post("/family/join/{family_id}")
-def join_family(family_id: str, user = Depends(get_current_user)):
+@app.post("/family/join")
+def join_family(family_join_code: FamilyJoinCode, user = Depends(get_current_user)):
 
-    doc_ref = store.collection("family").document(family_id)
+    print(family_join_code.code)
+
+    doc_ref = store.collection("family").document(family_join_code.code)
 
     doc = doc_ref.get()
 
