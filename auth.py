@@ -9,6 +9,7 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi import FastAPI
 from models.Product import Product, ProductList
 from models.Family import Family
+from models.FamilyJoinCode import FamilyJoinCode
 
 app = FastAPI()
 
@@ -223,10 +224,12 @@ def get_family_by_id(user = Depends(get_current_user)):
         return {"error": "User does not not have a family"}
 
 
-@app.post("/family/join/{family_id}")
-def join_family(family_id: str, user = Depends(get_current_user)):
+@app.post("/family/join")
+def join_family(family_join_code: FamilyJoinCode, user = Depends(get_current_user)):
 
-    doc_ref = store.collection("family").document(family_id)
+    print(family_join_code.code)
+
+    doc_ref = store.collection("family").document(family_join_code.code)
 
     doc = doc_ref.get()
 
