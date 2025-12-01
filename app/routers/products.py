@@ -1,5 +1,9 @@
-from fastapi import APIRouter
-from models.Product import Product, ProductList
+from fastapi import APIRouter, Depends, Body
+
+from app.models.Product import Product, ProductList
+from app.firebase import firestore, store
+from app.auth import verify_user_token
+
 
 router = APIRouter()
 
@@ -9,7 +13,7 @@ router = APIRouter()
 @router.post("/seedProducts")
 def seed_products(
     products: list[Product] = Body(...),
-    user = Depends(get_current_user)
+    user = Depends(verify_user_token)
 ):
     user_uid = user["uid"]
 
@@ -34,7 +38,7 @@ def seed_products(
     }
 
 @router.post("/products")
-def add_product(product: Product, user = Depends(get_current_user)):
+def add_product(product: Product, user = Depends(verify_user_token)):
     uid = user["uid"]
 
     # this is used to make the collection 
@@ -56,7 +60,7 @@ def add_product(product: Product, user = Depends(get_current_user)):
 # Want to make a get request to get the information of all products
 # https://stackoverflow.com/questions/62203845/firestore-list-subcollections-of-a-document-using-python
 @router.get("/getProducts")
-def get_product(user = Depends(get_current_user)):
+def get_product(user = Depends(verify_user_token)):
     uid = user["uid"]
 
     products_ref = (

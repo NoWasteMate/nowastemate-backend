@@ -1,9 +1,14 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends, Body
+
+from app.models.Family import Family
+from app.models.FamilyJoinCode import FamilyJoinCode
+from app.auth import verify_user_token
+from app.firebase import firestore, store 
 
 router = APIRouter()
 
 @router.post("/family")
-def post_family(family: Family, user = Depends(get_current_user)):
+def post_family(family: Family, user = Depends(verify_user_token)):
 
     doc_ref = store.collection("family").document()
     uid = user["uid"]
@@ -25,7 +30,7 @@ def post_family(family: Family, user = Depends(get_current_user)):
     return {"success": f"{family.title} family created"}
 
 @router.get("/family")
-def get_family_by_id(user = Depends(get_current_user)):
+def get_family_by_id(user = Depends(verify_user_token)):
 
     uid = user["uid"]
 
@@ -51,7 +56,7 @@ def get_family_by_id(user = Depends(get_current_user)):
 
 
 @router.post("/family/join")
-def join_family(family_join_code: FamilyJoinCode, user = Depends(get_current_user)):
+def join_family(family_join_code: FamilyJoinCode, user = Depends(verify_user_token)):
 
     print(family_join_code.code)
 
