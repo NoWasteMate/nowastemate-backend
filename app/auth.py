@@ -7,9 +7,9 @@ import firebase_admin
 from firebase_admin import credentials, auth, firestore
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi import FastAPI
-from models.Product import Product, ProductList
 from models.Family import Family
 from models.FamilyJoinCode import FamilyJoinCode
+from app.routers import families
 
 app = FastAPI()
 
@@ -22,7 +22,7 @@ store = firestore.client()
 
 # Verify that user's token is valid -> decoded user information
 # https://medium.com/@yonaakio/understanding-firebase-id-token-verification-in-python-with-fastapi-18967b78a5b8
-def get_current_user(cred: HTTPAuthorizationCredentials = Depends(HTTPBearer())):
+def auth_user_token(cred: HTTPAuthorizationCredentials = Depends(HTTPBearer())):
     if not cred:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -45,30 +45,12 @@ def get_current_user(cred: HTTPAuthorizationCredentials = Depends(HTTPBearer()))
 
 # Synchronizes user auth data with db
 @app.post("/syncUser")
-def sync_user_info(user = Depends(get_current_user)):
+def sync_user_info(user = Depends(auth_user_token)):
 
     uid = user['uid']
     email = user['email']
 
     doc_ref = store.collection("users").document(uid)
-    # TODO (nesting a collection with our user's document (still need to set it))
-    # products_ref = store.collection("users").document(uid).collection("products")
-
-    doc = doc_ref.get()
-
-
-    # if doc.exists:
-    #     return {"message": "User already exists"}
-    # else: 
-    #     #doc_ref = store.collection('users').document(uid)
-    #     doc_ref.set({
-    #         'email': email,
-    #         'createdAt': firestore.SERVER_TIMESTAMP,
-    #     })
-    #     products_ref.set({
-    #         'products': [],
-    #         'createdAt': firestore.SERVER_TIMESTAMP
-    #     })
 
     doc_ref.set({
         'email': email,
@@ -77,185 +59,11 @@ def sync_user_info(user = Depends(get_current_user)):
 
     return {'success': f"{email} user created"}
 
+
 @app.get("/userInformation")
-def get_user_information(user = Depends(get_current_user)):
-    print(get_current_user)
+def get_user_information(user = Depends(auth_user_token)):
+    print(auth_user_token)
     return {"uid": user["uid"], "email": user['email']}
 
-# PRODUCTS 
-#TODO adds an empty product list to user object (does not work at the moment)
-# @app.post("/addProductList")
-# def add_product_list(user = Depends(get_current_user)):
-
-#     uid = user['uid']
-#     email = user['email']
-
-#     product_ref = store.collection("users").document(uid)
-
-#     product_db = product_ref.get()
-
-#     if product_db.exists:
-#         return {"message": "User already exists"}
-#     else: 
-#         product_ref = store.collection('users').document(uid)
-#         product_ref.add({
-#             'email': email,
-#             'createdAt': firestore.SERVER_TIMESTAMP,
-#         })
-
-#     return
-# seedProducts is used to seed the user different kinds of products for testing.
-# Reference: https://firebase.google.com/docs/firestore/manage-data/transactions#batched-writes
-# Body from: https://fastapi.tiangolo.com/tutorial/body-fields/#import-field
-@app.post("/seedProducts")
-def seed_products(
-    products: list[Product] = Body(...),
-    user = Depends(get_current_user)
-):
-    user_uid = user["uid"]
-
-    doc_ref = store.collection("users").document(user_uid).collection("products")
-    
-    batch = store.batch()
-
-    for product in products:
-        prod_ref = doc_ref.collection(products).document()
-
-        batch.set(prod_ref, {
-            "name": product.name,
-            "quantity": product.quantity,
-            "createdAt": firestore.SERVER_TIMESTAMP,
-            "category": product.category
-        })
-
-    batch.commit()
-
-    return {
-        "message": "seed complete"
-    }
-
-@app.post("/products")
-def add_product(product: Product, user = Depends(get_current_user)):
-    uid = user["uid"]
-
-    # this is used to make the collection 
-    products_ref = (
-        store.collection("users")
-        .document(uid)
-        .collection("products")
-    )
-
-    doc_ref = products_ref.document()
-
-    doc_ref.set({
-        **product.model_dump(),
-        "createdAt": firestore.SERVER_TIMESTAMP,
-    })
-
-    return {"id": doc_ref.id, "message": "Product added"}
-
-# Want to make a get request to get the information of all products
-# https://stackoverflow.com/questions/62203845/firestore-list-subcollections-of-a-document-using-python
-@app.get("/getProducts")
-def get_product(user = Depends(get_current_user)):
-    uid = user["uid"]
-
-    products_ref = (
-        store.collection("users")
-        .document(uid)
-        .collection("products")
-    )
-
-    #https://firebase.google.com/docs/firestore/query-data/get-data
-    #https://firebase.google.com/docs/firestore/query-data/get-data#get_all_documents_in_a_collection
-    products_document = products_ref.stream()
-
-    products = []
-    for document in products_document:
-        products.append({"id": document.id, **document.to_dict()})
-
-    return products
-
-@app.post("/family")
-def post_family(family: Family, user = Depends(get_current_user)):
-
-    doc_ref = store.collection("family").document()
-    uid = user["uid"]
-
-    doc_ref.set({
-        "title": family.title,
-        "createdBy": uid,
-        "createdAt": firestore.SERVER_TIMESTAMP,
-        "members": [uid]
-    })
-
-    user_doc_ref = store.collection("users").document(uid)
-
-    #create the link to the family for the user - https://firebase.google.com/docs/firestore/manage-data/add-data#update-data
-    user_doc_ref.update({
-        "familyId": doc_ref.id
-    })
-
-    return {"success": f"{family.title} family created"}
-
-@app.get("/family")
-def get_family_by_id(user = Depends(get_current_user)):
-
-    uid = user["uid"]
-
-    user_doc_ref = store.collection("users").document(uid)
-
-    user_doc = user_doc_ref.get()
-
-    user_doc = user_doc.to_dict()
-
-    if user_doc["familyId"] is not None:
-        fam_id = user_doc["familyId"]
-
-        doc_ref = store.collection("family").document(fam_id)
-
-        #https://firebase.google.com/docs/firestore/query-data/get-data#get_a_document
-        doc = doc_ref.get()
-        if doc.exists:
-            return doc.to_dict()
-        else:
-            return {"error": "Family not found"}
-    else:
-        return {"error": "User does not not have a family"}
-
-
-@app.post("/family/join")
-def join_family(family_join_code: FamilyJoinCode, user = Depends(get_current_user)):
-
-    print(family_join_code.code)
-
-    doc_ref = store.collection("family").document(family_join_code.code)
-
-    doc = doc_ref.get()
-
-    json = doc.to_dict()
-
-    members = json["members"]
-
-    new_member = user["uid"]
-
-    if new_member not in members:
-        members.append(new_member)
-
-        doc_ref.update({
-        "members": members
-        })
-
-        user_doc_ref = store.collection("users").document(new_member)
-
-        user_doc_ref.update({
-        "familyId": doc_ref.id
-        })
-        return {"success": "User added to family"}
-    else:
-        return {"error": "User already in family"}
-    
-    
-
-
+app.include_router(families.router)
 
