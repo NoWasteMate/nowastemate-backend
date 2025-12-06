@@ -87,4 +87,19 @@ def join_family(family_join_code: FamilyJoinCode, user = Depends(verify_user_tok
         return {"error": "User already in family"}
     
     
+@router.get("/family_id")
+def get_family_id(user = Depends(verify_user_token)):
+    uid = user["uid"]
+
+    user_doc_ref = store.collection("users").document(uid)
+
+    user_doc = user_doc_ref.get()
+
+    user_doc = user_doc.to_dict()
+
+    if user_doc["familyId"] is not None:
+        fam_id = user_doc["familyId"]
+        return {fam_id}
+    else:
+        return None
 
