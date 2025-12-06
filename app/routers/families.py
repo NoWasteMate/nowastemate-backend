@@ -7,7 +7,7 @@ from app.firebase import firestore, store
 
 router = APIRouter()
 
-@router.post("/family")
+@router.post("/family", tags=['Families'])
 def post_family(family: Family, user = Depends(verify_user_token)):
 
     doc_ref = store.collection("family").document()
@@ -29,7 +29,7 @@ def post_family(family: Family, user = Depends(verify_user_token)):
 
     return {"success": f"{family.title} family created"}
 
-@router.get("/family")
+@router.get("/family", tags=['Families'])
 def get_family_by_id(user = Depends(verify_user_token)):
 
     uid = user["uid"]
@@ -55,7 +55,7 @@ def get_family_by_id(user = Depends(verify_user_token)):
         return {"error": "User does not not have a family"}
 
 
-@router.post("/family/join")
+@router.post("/family/join", tags=['Families'])
 def join_family(family_join_code: FamilyJoinCode, user = Depends(verify_user_token)):
 
     print(family_join_code.code)
@@ -88,7 +88,7 @@ def join_family(family_join_code: FamilyJoinCode, user = Depends(verify_user_tok
     
 
     
-@router.get("/family_id")
+@router.get("/family_id", tags=['Families'])
 def get_family_id(user = Depends(verify_user_token)):
     uid = user["uid"]
 
@@ -105,7 +105,7 @@ def get_family_id(user = Depends(verify_user_token)):
         return None
 
 #retrieves all family member email for display
-@router.get("/family_members")
+@router.get("/family_members", tags=['Families'])
 def get_family_members(user = Depends(verify_user_token)):
 
     family = get_family_by_id(user)

@@ -10,7 +10,7 @@ router = APIRouter()
 # seedProducts is used to seed the user different kinds of products for testing.
 # Reference: https://firebase.google.com/docs/firestore/manage-data/transactions#batched-writes
 # Body from: https://fastapi.tiangolo.com/tutorial/body-fields/#import-field
-@router.post("/seedProducts")
+@router.post("/seedProducts", tags=['Products'])
 def seed_products(
     products: list[Product] = Body(...),
     user = Depends(verify_user_token)
@@ -37,7 +37,7 @@ def seed_products(
         "message": "seed complete"
     }
 
-@router.post("/products")
+@router.post("/products", tags=['Products'])
 def add_product(product: Product, user = Depends(verify_user_token)):
     uid = user["uid"]
 
@@ -59,7 +59,7 @@ def add_product(product: Product, user = Depends(verify_user_token)):
 
 # Want to make a get request to get the information of all products
 # https://stackoverflow.com/questions/62203845/firestore-list-subcollections-of-a-document-using-python
-@router.get("/getProducts")
+@router.get("/getProducts", tags=['Products'])
 def get_product(user = Depends(verify_user_token)):
     uid = user["uid"]
 

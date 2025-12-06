@@ -7,7 +7,7 @@ from app.auth import verify_user_token
 
 router = APIRouter()
 
-@router.post("/addRecipe")
+@router.post("/addRecipe", tags=['Recipes'])
 def add_recipe(recipe: Recipe, user = Depends(verify_user_token)):
     uid = user["uid"]
 

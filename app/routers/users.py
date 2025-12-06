@@ -5,7 +5,7 @@ from app.auth import verify_user_token
 router = APIRouter()
 
 # Synchronizes user auth data with db
-@router.post("/syncUser")
+@router.post("/syncUser", tags=['Users'])
 def sync_user_info(user = Depends(verify_user_token)):
 
     uid = user['uid']
@@ -21,7 +21,7 @@ def sync_user_info(user = Depends(verify_user_token)):
     return {'success': f"{email} user created"}
 
 
-@router.get("/userInformation")
+@router.get("/userInformation", tags=['Users'])
 def get_user_information(user = Depends(verify_user_token)):
     print(verify_user_token)
     return {"uid": user["uid"], "email": user['email']}
