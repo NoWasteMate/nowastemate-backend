@@ -86,6 +86,7 @@ def join_family(family_join_code: FamilyJoinCode, user = Depends(verify_user_tok
     else:
         return {"error": "User already in family"}
     
+
     
 @router.get("/family_id")
 def get_family_id(user = Depends(verify_user_token)):
@@ -102,4 +103,28 @@ def get_family_id(user = Depends(verify_user_token)):
         return {fam_id}
     else:
         return None
+
+#retrieves all family member email for display
+@router.get("/family_members")
+def get_family_members(user = Depends(verify_user_token)):
+
+    family = get_family_by_id(user)
+
+    members = family["members"]
+
+    arr = []
+
+    for i in members:
+        user_doc_ref = store.collection("users").document(i)
+
+        doc = user_doc_ref.get()
+
+        json = doc.to_dict()
+
+        if json != None:
+            json = json["email"]
+            
+            arr.append(json)
+
+    return arr
 
