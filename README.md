@@ -6,3 +6,5 @@ Python based backend for
 ❯ pip install "fastapi[standard]"
 ❯ pip install firebase_admin
 ❯ pip install pydantic
+❯ pip install python-dotenv
+❯ pip install -q -U google-genai
