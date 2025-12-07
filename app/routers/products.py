@@ -79,6 +79,26 @@ def get_product(user = Depends(verify_user_token)):
 
     return products
 
+# making a user delete a product based on its id
+# reference: https://firebase.google.com/docs/firestore/manage-data/delete-data#python_2
+@router.delete("/deleteProduct/{product_id}")
+def delete_product(product_id: str, user = Depends(verify_user_token)):
+    uid = user["uid"]
+
+    products_ref = (
+        store.collection("users")
+        .document(uid)
+        .collection("products")
+        .document(product_id)
+    )
+
+    product = products_ref.get()
+    print(product)
+
+    products_ref.delete()
+
+    return {"message": "Product of that id has been deleted"}
+
 # PRODUCTS 
 #TODO adds an empty product list to user object (does not work at the moment)
 # @app.post("/addProductList")
