@@ -53,6 +53,7 @@ def add_product(product: Product, user = Depends(verify_user_token)):
     doc_ref.set({
         **product.model_dump(),
         "createdAt": firestore.SERVER_TIMESTAMP,
+        "createdBy": uid
     })
 
     return {"id": doc_ref.id, "message": "Product added"}
