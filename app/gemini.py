@@ -49,6 +49,7 @@ def generate_recipe(products: list[dict]):
     '''
     )
 
+    # Retrieved from pydantic documentation: https://docs.pydantic.dev/latest/concepts/json/#json-parsing
     recipe = Recipe.model_validate_json(response.text)
 
     return recipe
