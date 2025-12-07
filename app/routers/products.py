@@ -99,6 +99,25 @@ def delete_product(product_id: str, user = Depends(verify_user_token)):
 
     return {"message": "Product of that id has been deleted"}
 
+# making a user update a product based on its id
+# reference: https://firebase.google.com/docs/firestore/manage-data/add-data#update-data
+@router.put("/putProduct/{product_id}")
+def update_product(product_id: str, product: Product, user = Depends(verify_user_token)):
+    uid = user["uid"]
+
+    products_ref = (
+        store.collection("users")
+        .document(uid)
+        .collection("products")
+        .document(product_id)
+    )
+    
+    products_ref.update({
+        **product.model_dump()
+    })
+
+    return {"that id has been updated"}
+
 # PRODUCTS 
 #TODO adds an empty product list to user object (does not work at the moment)
 # @app.post("/addProductList")
