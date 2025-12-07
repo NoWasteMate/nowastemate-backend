@@ -47,4 +47,4 @@ def generate_recipe_from_products(user = Depends(verify_user_token)):
 
     recipe_json = generate_recipe(products)
     
-    return recipe_json.text
+    return recipe_json

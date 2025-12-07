@@ -4,7 +4,7 @@ from google import genai
 from google.genai import types
 import os
 from dotenv import load_dotenv
-from app.models.Product import Product
+from app.models.Recipe import Recipe
 
 products = ["Chicken", "Peppers", "Garlic", "Onion"]
 
@@ -44,10 +44,11 @@ def generate_recipe(products: list[dict]):
         - prepTime (integer)
         - cookTime (integer)
         - servings (integer)
-        - ingredients: list of objects with 'name' and 'quantity'
+        - ingredients: list of objects with 'name'(str), 'quantity'(int), and 'unit' (str)
         - instructions: list of strings
     '''
     )
 
+    recipe = Recipe.model_validate_json(response.text)
 
-    return response
+    return recipe
