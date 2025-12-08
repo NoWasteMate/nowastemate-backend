@@ -9,7 +9,7 @@ from pydantic import BaseModel
 class Product(BaseModel):
     name: str
     quantity: int
-    createdAt: Optional[str] = None
+    createdAt: str
     createdBy: Optional[str] = None
     dateExpiredUserSet: Optional[str] = None
     dateRemoved: Optional[str] = None
