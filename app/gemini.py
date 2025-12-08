@@ -43,7 +43,7 @@ def generate_recipe(products: list[dict]):
         - prepTime (integer)
         - cookTime (integer)
         - servings (integer)
-        - ingredients: list of objects with 'name'(str), 'quantity'(int), 'unit' (str), and ONLY IF using provided product 'product_id: string' otherwise 'product_id: null'
+        - ingredients: list of objects with 'name'(str), 'quantity'(int), 'unit' (str), and ONLY IF using provided product 'productId: string' otherwise 'productId: null'
         - instructions: list of strings
     '''
     )
