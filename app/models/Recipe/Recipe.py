@@ -1,9 +1,5 @@
 from pydantic import BaseModel
-
-class Ingredient(BaseModel):
-    name: str
-    quantity: float
-    unit: str
+from app.models.Recipe.Ingredient import Ingredient
 
 class Recipe(BaseModel):
     recipeName: str
