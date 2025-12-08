@@ -1,6 +1,6 @@
-from fastapi import APIRouter, Depends, Body
+from fastapi import APIRouter, Depends, HTTPException, status
 
-from app.models.Recipe import Recipe, Ingredient
+from app.models.Recipe.Recipe import Recipe
 from app.firebase import firestore, store
 from app.auth import verify_user_token
 
@@ -55,6 +55,32 @@ def get_all_recipes(user=Depends(verify_user_token)):
 
 
 
+@router.delete("/deleteRecipe/{recipe_id}", description="Remove recipe from user by ID", tags=['Recipes'])
+def remove_recipe_by_id(recipe_id: str, user = Depends(verify_user_token)):
+    uid = user["uid"]
+
+    recipe_ref = (
+        store.collection('users')
+        .document(uid)
+        .collection('recipes')
+        .document(recipe_id)
+    )
+    # https://firebase.google.com/docs/firestore/query-data/get-data#get_a_document
+    # Information for error handling, response was always stating success
+
+    recipe_doc = recipe_ref.get()
+
+    # Error handling if recipe can't be found
+    if not recipe_doc.exists:
+        return HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Unable to find Recipe Id: {recipe_id}",
+            headers={"WWW-Authenticate": "Bearer"}
+        )
+
+    recipe_ref.delete()
+    return {"Success": f"Removed recipe with id {recipe_id}"}
+    
 
 
 # Helper function for saving recipe to firestore
