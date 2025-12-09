@@ -40,9 +40,12 @@ def generate_recipe(products: list[dict]):
 
         The JSON object must contain:
         - recipeName (string)
+        - description (string, 1 sentence)
         - prepTime (integer)
         - cookTime (integer)
         - servings (integer)
+        - difficulty (string)
+        - ingredientsUsed(integer, how many ingredients used from products)
         - ingredients: list of objects with 'name'(str), 'quantity'(int), 'unit' (str), and ONLY IF using provided product 'productId: string' otherwise 'productId: null'
         - instructions: list of strings
     '''
