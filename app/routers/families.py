@@ -58,8 +58,44 @@ def get_family_by_id(user = Depends(verify_user_token)):
 @router.post("/family/join", tags=['Families'])
 def join_family(family_join_code: FamilyJoinCode, user = Depends(verify_user_token)):
 
-    print(family_join_code.code)
+    uid = user["uid"]
 
+    user_doc_ref = store.collection("users").document(uid)
+
+    user_doc = user_doc_ref.get()
+
+    json = user_doc.to_dict()
+
+    prev_fam_id = json["familyId"]
+
+    print(prev_fam_id)
+
+    if prev_fam_id != None:
+        prev_fam_ref = store.collection("family").document(prev_fam_id)
+        prev_fam_doc = prev_fam_ref.get()
+        json = prev_fam_doc.to_dict()
+        members = json["members"]
+
+
+        #https://stackoverflow.com/questions/4915920/how-to-delete-an-item-in-a-list-if-it-exists
+        if uid in members: 
+            members.remove(uid)
+
+        #delete reference to old family from the family document
+        prev_fam_ref.update({
+            "members": members
+        })
+
+
+        #re-check the old family, if it no longer has members, delete
+        prev_fam_doc = prev_fam_ref.get()
+        json = prev_fam_doc.to_dict()
+        members = json["members"]
+        
+        if members == []:
+            prev_fam_ref.delete()
+        
+        
     doc_ref = store.collection("family").document(family_join_code.code)
 
     doc = doc_ref.get()
@@ -102,7 +138,7 @@ def get_family_id(user = Depends(verify_user_token)):
         fam_id = user_doc["familyId"]
         return {fam_id}
     else:
-        return None
+        return {"error: Family not found"}
 
 #retrieves all family member email for display
 @router.get("/family_members", tags=['Families'])
