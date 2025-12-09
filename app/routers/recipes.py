@@ -13,7 +13,7 @@ router = APIRouter()
 def add_recipe(recipe: Recipe, user = Depends(verify_user_token)):
     save_recipe_for_user(recipe=recipe, user=user['uid'])
 
-@router.get("/generateRecipe", description="Generate a recipe from users personal product list and adds to user collection", tags=['Recipes'])
+@router.post("/generateRecipe", description="Generate a recipe from users personal product list and adds to user collection", tags=['Recipes'])
 def generate_recipe_from_products(user = Depends(verify_user_token)):
     uid = user["uid"]
 
