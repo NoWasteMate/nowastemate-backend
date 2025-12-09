@@ -28,7 +28,8 @@ def generate_recipe(products: list[dict]):
         thinking_config=types.ThinkingConfig(thinking_budget=0)
     ),
     contents=f'''
-       Use the following products to create a recipe: {product_details}.
+       Use the following products to create a creative recipe: {product_details}.
+       Make sure this single recipe is distinct, always use at least 1 product
 
         Return ONLY valid JSON representing the recipe.
 
