@@ -82,7 +82,7 @@ def get_product(user = Depends(verify_user_token)):
 
 # making a user delete a product based on its id
 # reference: https://firebase.google.com/docs/firestore/manage-data/delete-data#python_2
-@router.delete("/deleteProduct/{product_id}")
+@router.delete("/deleteProduct/{product_id}", tags=['Products'])
 def delete_product(product_id: str, user = Depends(verify_user_token)):
     uid = user["uid"]
 
@@ -102,7 +102,7 @@ def delete_product(product_id: str, user = Depends(verify_user_token)):
 
 # making a user update a product based on its id
 # reference: https://firebase.google.com/docs/firestore/manage-data/add-data#update-data
-@router.put("/putProduct/{product_id}")
+@router.put("/putProduct/{product_id}", tags=['Products'])
 def update_product(product_id: str, product: Product, user = Depends(verify_user_token)):
     uid = user["uid"]
 
