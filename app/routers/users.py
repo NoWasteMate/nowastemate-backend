@@ -13,12 +13,18 @@ def sync_user_info(user = Depends(verify_user_token)):
 
     doc_ref = store.collection("users").document(uid)
 
-    doc_ref.set({
-        'email': email,
-        'createdAt': firestore.SERVER_TIMESTAMP,
-    })
+    user_check = doc_ref.get()
+    #https://stackoverflow.com/questions/51483234/how-to-know-if-document-exists-in-firestore-python
+    if not user_check.exists:
 
-    return {'success': f"{email} user created"}
+        doc_ref.set({
+            'email': email,
+            'createdAt': firestore.SERVER_TIMESTAMP,
+        })
+        return {'success': f"{email} user created"}
+    
+    return {"message": "User already exists"}
+    
 
 
 @router.get("/userInformation", tags=['Users'])
