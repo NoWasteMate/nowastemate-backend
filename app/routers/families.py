@@ -70,6 +70,9 @@ def join_family(family_join_code: FamilyJoinCode, user = Depends(verify_user_tok
 
     user_doc = user_doc_ref.get()
 
+    if not user_doc.exists:
+        return {"error": "User not found"}
+
     json = user_doc.to_dict()
 
 
@@ -107,6 +110,9 @@ def join_family(family_join_code: FamilyJoinCode, user = Depends(verify_user_tok
     doc_ref = store.collection("family").document(family_join_code.code)
 
     doc = doc_ref.get()
+
+    if not doc.exists:
+        return {"error": "Code not found"}
 
     json = doc.to_dict()
 
