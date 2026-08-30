@@ -40,11 +40,15 @@ def get_family_by_id(user = Depends(verify_user_token)):
 
     user_doc = user_doc_ref.get()
 
+    if not user_doc.exists:
+        return {"error": "User not found"}
+
     user_doc = user_doc.to_dict()
 
-    if user_doc["familyId"] is not None:
-        fam_id = user_doc["familyId"]
+    fam_id = user_doc["familyId"]
 
+    if fam_id is not None:
+        
         doc_ref = store.collection("family").document(fam_id)
 
         #https://firebase.google.com/docs/firestore/query-data/get-data#get_a_document
@@ -65,6 +69,9 @@ def join_family(family_join_code: FamilyJoinCode, user = Depends(verify_user_tok
     user_doc_ref = store.collection("users").document(uid)
 
     user_doc = user_doc_ref.get()
+
+    if not user_doc.exists:
+        return {"error": "User not found"}
 
     json = user_doc.to_dict()
 
@@ -103,6 +110,9 @@ def join_family(family_join_code: FamilyJoinCode, user = Depends(verify_user_tok
     doc_ref = store.collection("family").document(family_join_code.code)
 
     doc = doc_ref.get()
+
+    if not doc.exists:
+        return {"error": "Code not found"}
 
     json = doc.to_dict()
 
