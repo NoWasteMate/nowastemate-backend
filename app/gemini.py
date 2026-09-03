@@ -14,7 +14,7 @@ google_api_key = os.environ["GEMINI_API_KEY"]
 client = genai.Client(api_key=google_api_key)
 
 # Different models (in order of preference) tried if there's a 503 ServerError
-MODELS = ["gemini-2.5-flash", "gemini-2.5-flash-lite"]
+MODELS = ["gemini-3.5-flash", "gemini-3.1-flash-lite"]
 
 def generate_recipe(products: list[dict[str, Any]]):
 
