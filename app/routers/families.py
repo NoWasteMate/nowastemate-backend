@@ -11,7 +11,6 @@ router = APIRouter()
 def post_family(family: Family, user = Depends(verify_user_token)):
 
     #TODO: remove user from old family
-
     doc_ref = store.collection("family").document()
     uid = user["uid"]
 
@@ -23,7 +22,6 @@ def post_family(family: Family, user = Depends(verify_user_token)):
     })
 
     user_doc_ref = store.collection("users").document(uid)
-
     #create the link to the family for the user - https://firebase.google.com/docs/firestore/manage-data/add-data#update-data
     user_doc_ref.update({
         "familyId": doc_ref.id
@@ -35,22 +33,17 @@ def post_family(family: Family, user = Depends(verify_user_token)):
 def get_family_by_id(user = Depends(verify_user_token)):
 
     uid = user["uid"]
-
     user_doc_ref = store.collection("users").document(uid)
-
     user_doc = user_doc_ref.get()
 
     if not user_doc.exists:
         return {"error": "User not found"}
 
     user_doc = user_doc.to_dict()
-
     fam_id = user_doc["familyId"]
 
     if fam_id is not None:
-        
         doc_ref = store.collection("family").document(fam_id)
-
         #https://firebase.google.com/docs/firestore/query-data/get-data#get_a_document
         doc = doc_ref.get()
         if doc.exists:
@@ -65,20 +58,14 @@ def get_family_by_id(user = Depends(verify_user_token)):
 def join_family(family_join_code: FamilyJoinCode, user = Depends(verify_user_token)):
 
     uid = user["uid"]
-
     user_doc_ref = store.collection("users").document(uid)
-
     user_doc = user_doc_ref.get()
 
     if not user_doc.exists:
         return {"error": "User not found"}
 
     json = user_doc.to_dict()
-
-
     #https://firebase.google.com/docs/firestore/query-data/get-data#get_a_document
-    #realized i have been doing unsafe checking, will need to review the functions
-    #kept breaking in cases and needs to be re-done
     prev_fam_id = json.get("familyId")
 
     if prev_fam_id != None:
@@ -105,30 +92,25 @@ def join_family(family_join_code: FamilyJoinCode, user = Depends(verify_user_tok
         
         if members == []:
             prev_fam_ref.delete()
-        
-        
-    doc_ref = store.collection("family").document(family_join_code.code)
 
+    doc_ref = store.collection("family").document(family_join_code.code)
     doc = doc_ref.get()
 
     if not doc.exists:
         return {"error": "Code not found"}
 
     json = doc.to_dict()
-
     members = json["members"]
-
     new_member = user["uid"]
 
     if new_member not in members:
         members.append(new_member)
-
+        
         doc_ref.update({
         "members": members
         })
 
         user_doc_ref = store.collection("users").document(new_member)
-
         user_doc_ref.update({
         "familyId": doc_ref.id
         })
@@ -140,12 +122,10 @@ def join_family(family_join_code: FamilyJoinCode, user = Depends(verify_user_tok
     
 @router.get("/family_id", tags=['Families'])
 def get_family_id(user = Depends(verify_user_token)):
+    
     uid = user["uid"]
-
     user_doc_ref = store.collection("users").document(uid)
-
     user_doc = user_doc_ref.get()
-
     user_doc = user_doc.to_dict()
 
     if user_doc.get("familyId"):
@@ -160,36 +140,27 @@ def get_family_id(user = Depends(verify_user_token)):
 def get_family_members(user = Depends(verify_user_token)):
 
     uid = user["uid"]
-
     user_doc_ref = store.collection("users").document(uid)
-
     user_check = user_doc_ref.get()
+    
     #https://stackoverflow.com/questions/51483234/how-to-know-if-document-exists-in-firestore-python
     if not user_check.exists:
         return "error"
     
     user_doc = user_check.to_dict()
-        
     fam_id = user_doc["familyId"]
-
     fam_doc_ref = store.collection("family").document(fam_id)
-
     family = fam_doc_ref.get()
-
     family = family.to_dict()
 
     arr = []
-
     for i in family["members"]:
         user_doc_ref = store.collection("users").document(i)
-
         doc = user_doc_ref.get()
-
         json = doc.to_dict()
 
         if json != None:
             json = json["email"]
-            
             arr.append(json)
 
     return arr

@@ -10,9 +10,7 @@ def sync_user_info(user = Depends(verify_user_token)):
 
     uid = user['uid']
     email = user['email']
-
     doc_ref = store.collection("users").document(uid)
-
     user_check = doc_ref.get()
     #https://stackoverflow.com/questions/51483234/how-to-know-if-document-exists-in-firestore-python
     if not user_check.exists:
