@@ -1,12 +1,14 @@
 from fastapi import APIRouter, Depends
 from app.firebase import firestore, store
 from app.auth import verify_user_token
+from app.models.User import User
+
 
 router = APIRouter()
 
 # Synchronizes user auth data with db
 @router.post("/syncUser", tags=['Users'])
-def sync_user_info(user = Depends(verify_user_token)):
+def sync_user_info(user_info: User, user = Depends(verify_user_token)):
 
     uid = user['uid']
     email = user['email']
@@ -16,10 +18,12 @@ def sync_user_info(user = Depends(verify_user_token)):
     user_check = doc_ref.get()
     #https://stackoverflow.com/questions/51483234/how-to-know-if-document-exists-in-firestore-python
     if not user_check.exists:
-
         doc_ref.set({
             'email': email,
             'createdAt': firestore.SERVER_TIMESTAMP,
+            'first_name': user_info.first_name,
+            'last_name': user_info.last_name,
+            'dietrary_preferences': user_info.dietrary_preferences
         })
         return {'success': f"{email} user created"}
     
