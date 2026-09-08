@@ -1,14 +1,14 @@
 from fastapi import APIRouter, Depends
 from app.firebase import firestore, store
 from app.auth import verify_user_token
-from app.models.User import User
+from app.models.UserInfo import UserInfo
 
 
 router = APIRouter()
 
 # Synchronizes user auth data with db
 @router.post("/syncUser", tags=['Users'])
-def sync_user_info(user_info: User, user = Depends(verify_user_token)):
+def sync_user_info(user_info: UserInfo, user = Depends(verify_user_token)):
 
     uid = user['uid']
     email = user['email']
@@ -21,9 +21,9 @@ def sync_user_info(user_info: User, user = Depends(verify_user_token)):
         doc_ref.set({
             'email': email,
             'createdAt': firestore.SERVER_TIMESTAMP,
-            'first_name': user_info.first_name,
-            'last_name': user_info.last_name,
-            'dietrary_preferences': user_info.dietrary_preferences
+            'firstName': user_info.firstName,
+            'lastName': user_info.lastName,
+            'dietaryRestrictions': user_info.dietaryRestrictions
         })
         return {'success': f"{email} user created"}
     
