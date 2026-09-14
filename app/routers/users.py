@@ -32,6 +32,5 @@ def sync_user_info(user_info: UserInfo, user = Depends(verify_user_token)):
 
 
 @router.get("/userInformation", tags=['Users'])
-def get_user_information(user = Depends(verify_user_token)):
-    print(verify_user_token)
-    return {"uid": user["uid"], "email": user['email']}
+def get_user_information(user = Depends(authorization_actions.verify_user_token)):
+    return user_actions.get_user_information(user["uid"], user['email'])

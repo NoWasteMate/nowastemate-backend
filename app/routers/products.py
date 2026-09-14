@@ -1,8 +1,8 @@
 from fastapi import APIRouter, Depends, Body
 
 from app.models.Product import Product, ProductList
-from app.firebase import firestore, store
-from app.auth import verify_user_token
+from app.actions.authorization_actions import authorization_actions
+from app.actions.product_actions import product_actions
 
 
 router = APIRouter()
@@ -13,113 +13,33 @@ router = APIRouter()
 @router.post("/seedProducts", tags=['Products'])
 def seed_products(
     products: list[Product] = Body(...),
-    user = Depends(verify_user_token)
+    user = Depends(authorization_actions.verify_user_token)
 ):
-    user_uid = user["uid"]
-
-    doc_ref = store.collection("users").document(user_uid).collection("products")
-    
-    batch = store.batch()
-
-    for product in products:
-        prod_ref = doc_ref.collection(products).document()
-
-        batch.set(prod_ref, {
-            "name": product.name,
-            "quantity": product.quantity,
-            "createdAt": firestore.SERVER_TIMESTAMP,
-            "category": product.category
-        })
-
-    batch.commit()
-
-    return {
-        "message": "seed complete"
-    }
+    return product_actions.seed_products(user["uid"], products)
 
 @router.post("/products", tags=['Products'])
-def add_product(product: Product, user = Depends(verify_user_token)):
-    uid = user["uid"]
-
-    # this is used to make the collection 
-    products_ref = (
-        store.collection("users")
-        .document(uid)
-        .collection("products")
-    )
-
-    doc_ref = products_ref.document()
-
-    doc_ref.set({
-        **product.model_dump(),
-        "createdAt": firestore.SERVER_TIMESTAMP,
-        "createdBy": uid
-    })
-
-    return {"id": doc_ref.id, "message": "Product added"}
+def add_product(product: Product, user = Depends(authorization_actions.verify_user_token)):
+    return product_actions.add_product(user["uid"], product)
 
 # Want to make a get request to get the information of all products
 # https://stackoverflow.com/questions/62203845/firestore-list-subcollections-of-a-document-using-python
 @router.get("/getProducts", tags=['Products'])
-def get_product(user = Depends(verify_user_token)):
-    uid = user["uid"]
-
-    products_ref = (
-        store.collection("users")
-        .document(uid)
-        .collection("products")
-    )
-
-    #https://firebase.google.com/docs/firestore/query-data/get-data
-    #https://firebase.google.com/docs/firestore/query-data/get-data#get_all_documents_in_a_collection
-    products_document = products_ref.stream()
-
-    products = []
-    for document in products_document:
-        products.append({"id": document.id, **document.to_dict()})
-
-    return products
+def get_product(user = Depends(authorization_actions.verify_user_token)):
+    return product_actions.get_products(user["uid"])
 
 # making a user delete a product based on its id
 # reference: https://firebase.google.com/docs/firestore/manage-data/delete-data#python_2
 @router.delete("/deleteProduct/{product_id}", tags=['Products'])
-def delete_product(product_id: str, user = Depends(verify_user_token)):
-    uid = user["uid"]
-
-    products_ref = (
-        store.collection("users")
-        .document(uid)
-        .collection("products")
-        .document(product_id)
-    )
-
-    product = products_ref.get()
-    print(product)
-
-    products_ref.delete()
-
-    return {"message": "Product of that id has been deleted"}
+def delete_product(product_id: str, user = Depends(authorization_actions.verify_user_token)):
+    return product_actions.delete_product(user["uid"], product_id)
 
 # making a user update a product based on its id
 # reference: https://firebase.google.com/docs/firestore/manage-data/add-data#update-data
 @router.put("/putProduct/{product_id}", tags=['Products'])
-def update_product(product_id: str, product: Product, user = Depends(verify_user_token)):
-    uid = user["uid"]
+def update_product(product_id: str, product: Product, user = Depends(authorization_actions.verify_user_token)):
+    return product_actions.update_product(user["uid"], product_id, product)
 
-    products_ref = (
-        store.collection("users")
-        .document(uid)
-        .collection("products")
-        .document(product_id)
-    )
-    
-    products_ref.update({
-        **product.model_dump()
-    })
-
-    return {"that id has been updated"}
-
-# PRODUCTS 
+# PRODUCTS
 #TODO adds an empty product list to user object (does not work at the moment)
 # @app.post("/addProductList")
 # def add_product_list(user = Depends(get_current_user)):
@@ -133,7 +53,7 @@ def update_product(product_id: str, product: Product, user = Depends(verify_user
 
 #     if product_db.exists:
 #         return {"message": "User already exists"}
-#     else: 
+#     else:
 #         product_ref = store.collection('users').document(uid)
 #         product_ref.add({
 #             'email': email,
