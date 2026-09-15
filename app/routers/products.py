@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, Body
 
-from app.models.Product import Product, ProductList
+from app.models.Product import Product, ProductList, ProductUpdate
 from app.actions.authorization_actions import authorization_actions
 from app.actions.product_actions import product_actions
 
@@ -36,7 +36,7 @@ def delete_product(product_id: str, user = Depends(authorization_actions.verify_
 # making a user update a product based on its id
 # reference: https://firebase.google.com/docs/firestore/manage-data/add-data#update-data
 @router.put("/putProduct/{product_id}", tags=['Products'])
-def update_product(product_id: str, product: Product, user = Depends(authorization_actions.verify_user_token)):
+def update_product(product_id: str, product: ProductUpdate, user = Depends(authorization_actions.verify_user_token)):
     return product_actions.update_product(user["uid"], product_id, product)
 
 # PRODUCTS
