@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Body, Depends
 
 from app.models.Recipe.Recipe import Recipe
 from app.actions.authorization_actions import authorization_actions
@@ -6,6 +6,13 @@ from app.actions.recipe_actions import recipe_actions
 
 
 router = APIRouter()
+
+@router.post("/seedRecipes", tags=['Recipes'])
+def seed_recipes(
+    recipes: list[Recipe] = Body(...),
+    user = Depends(authorization_actions.verify_user_token)
+):
+    return recipe_actions.seed_recipes(user["uid"], recipes)
 
 @router.post("/addRecipe", tags=['Recipes'])
 def add_recipe(recipe: Recipe, user = Depends(authorization_actions.verify_user_token)):
