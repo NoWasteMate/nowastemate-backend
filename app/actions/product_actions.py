@@ -1,4 +1,4 @@
-from app.models.Product import Product
+from app.models.Product import Product, ProductUpdate
 from app.firebase import firestore, store
 
 
@@ -85,7 +85,7 @@ class ProductActions:
 
     # making a user update a product based on its id
     # reference: https://firebase.google.com/docs/firestore/manage-data/add-data#update-data
-    def update_product(self, uid: str, product_id: str, product: "ProductUpdate"):
+    def update_product(self, uid: str, product_id: str, product: ProductUpdate):
         products_ref = (
             store.collection("users")
             .document(uid)
