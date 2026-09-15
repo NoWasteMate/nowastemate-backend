@@ -85,7 +85,7 @@ class ProductActions:
 
     # making a user update a product based on its id
     # reference: https://firebase.google.com/docs/firestore/manage-data/add-data#update-data
-    def update_product(self, uid: str, product_id: str, product: Product):
+    def update_product(self, uid: str, product_id: str, product: "ProductUpdate"):
         products_ref = (
             store.collection("users")
             .document(uid)
@@ -93,11 +93,10 @@ class ProductActions:
             .document(product_id)
         )
 
-        products_ref.update({
-            **product.model_dump()
-        })
+        update_data = product.model_dump(exclude_unset=True)
+        products_ref.update(update_data)
 
-        return {"that id has been updated"}
+        return {"id": product_id, "message": "Product updated"}
 
 
 product_actions = ProductActions()
