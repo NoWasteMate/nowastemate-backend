@@ -8,6 +8,28 @@ from app.gemini import generate_recipe
 
 class RecipeActions:
 
+    def seed_recipes(self, uid: str, recipes: list[Recipe]):
+        recipes_ref = (
+            store.collection("users")
+            .document(uid)
+            .collection("recipes")
+        )
+
+        batch = store.batch()
+
+        for recipe in recipes:
+            recipe_ref = recipes_ref.document()
+            batch.set(recipe_ref, {
+                **recipe.model_dump(),
+                "createdAt": firestore.SERVER_TIMESTAMP
+            })
+
+        batch.commit()
+
+        return {
+            "message": "seed complete"
+        }
+
     def add_recipe(self, uid: str, recipe: Recipe):
         return self.save_recipe_for_user(recipe=recipe, uid=uid)
 
