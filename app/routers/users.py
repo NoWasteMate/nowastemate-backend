@@ -18,5 +18,5 @@ def get_user_information(user = Depends(authorization_actions.verify_user_token)
     return user_actions.get_user_information(user["uid"], user['email'])
 
 @router.put("/editUser", tags=['Users'])
-def edit_request(user_info: UserInfo, user = Depends(verify_user_token)):
+def edit_request(user_info: UserInfo, user = Depends(authorization_actions.verify_user_token)):
     return user_actions.edit_user(user_info, user)
