@@ -6,6 +6,19 @@ from typing import Optional
 from pydantic import BaseModel
 from datetime import datetime 
 
+#reference for enums: https://fastapi.tiangolo.com/tutorial/path-params/#compare-enumeration-members
+from enum import Enum
+
+class ProductCategory(str, Enum):
+    produce = "produce"
+    dairy = "dairy"
+    meat = "meat"
+    grains = "grains"
+    canned = "canned"
+    frozen = "frozen"
+    beverage = "beverage"
+    other = "other"
+
 #subject to change
 class Product(BaseModel):
     name: str
@@ -15,12 +28,12 @@ class Product(BaseModel):
     dateExpiration: Optional[datetime] = None
     dateRemoved: Optional[str] = None
     usedInRecipe: Optional[str] = None
-    category: str
+    category: ProductCategory
 
 class ProductUpdate(BaseModel):
     name: Optional[str] = None
     quantity: Optional[int] = None
-    category: Optional[str] = None
+    category: Optional[ProductCategory] = None
     dateExpiration: Optional[datetime] = None
     dateRemoved: Optional[str] = None
     usedInRecipe: Optional[str] = None
