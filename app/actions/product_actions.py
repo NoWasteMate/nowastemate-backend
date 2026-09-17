@@ -5,6 +5,7 @@ from app.firebase import firestore, store
 class ProductActions:
 
     # seed_products is used to seed the user different kinds of products for testing.
+    # (Subject to change)
     # Reference: https://firebase.google.com/docs/firestore/manage-data/transactions#batched-writes
     def seed_products(self, uid: str, products: list[Product]):
 
@@ -19,7 +20,7 @@ class ProductActions:
                 "name": product.name,
                 "quantity": product.quantity,
                 "createdAt": firestore.SERVER_TIMESTAMP,
-                "category": product.category
+                "category": product.category.value
             })
 
         batch.commit()
