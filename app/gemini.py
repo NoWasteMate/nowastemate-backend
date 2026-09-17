@@ -49,6 +49,7 @@ def generate_recipe(products: list[dict[str, Any]]):
         - ingredientsUsed(integer, how many ingredients used from products)
         - ingredients: list of objects with 'name'(str), 'quantity'(int), 'unit' (str), and ONLY IF using provided product 'productId: string' otherwise 'productId: null'
         - instructions: list of strings
+        - category (string, exactly one of: "soup", "salad", "pasta", "handheld", "breakfast", "dessert", "drink", "platedMain", "general" — pick "general" if nothing else fits)
     '''
 
     last_error = None
