@@ -27,3 +27,7 @@ def get_family_id(user = Depends(authorization_actions.verify_user_token)):
 @router.get("/family_members", tags=['Families'])
 def get_family_members(user = Depends(authorization_actions.verify_user_token)):
     return family_actions.get_family_members(user["uid"])
+
+@router.put("/family_name", tags=['Families'])
+def update_family_name(family: Family, user = Depends(authorization_actions.verify_user_token)):
+    return family_actions.edit_family_name(user["uid"], family)

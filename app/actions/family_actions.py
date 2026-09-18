@@ -1,6 +1,7 @@
 from app.models.Family import Family
 from app.models.FamilyJoinCode import FamilyJoinCode
 from app.firebase import firestore, store
+from fastapi import HTTPException, status
 
 
 class FamilyActions:
@@ -13,7 +14,7 @@ class FamilyActions:
 
         doc_ref.set({
             "title": family.title,
-            "createdBy": uid,
+            "ownerId": uid,
             "createdAt": firestore.SERVER_TIMESTAMP,
             "members": [uid]
         })
@@ -43,7 +44,6 @@ class FamilyActions:
         if fam_id is not None:
 
             doc_ref = store.collection("family").document(fam_id)
-
             #https://firebase.google.com/docs/firestore/query-data/get-data#get_a_document
             doc = doc_ref.get()
             if doc.exists:
@@ -173,6 +173,43 @@ class FamilyActions:
                 arr.append(json)
 
         return arr
+    
+    def edit_family_name(self, uid: str, newTitle: Family):
+        user_doc_ref = store.collection("users").document(uid)
+
+        user_check = user_doc_ref.get()
+        #https://stackoverflow.com/questions/51483234/how-to-know-if-document-exists-in-firestore-python
+        if not user_check.exists:
+            return "error"
+
+        user_doc = user_check.to_dict()
+
+        fam_id = user_doc["familyId"]
+
+        fam_doc_ref = store.collection("family").document(fam_id)
+
+        fam_doc = fam_doc_ref.get()
+
+        fam = fam_doc.to_dict()
+
+        if uid == fam["ownerId"]:
+            fam_doc_ref.update(
+                {
+                    'title': newTitle.title
+                }
+            )
+            return {"success": "Family updated"}
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Not the family owner")
+
+
+ 
+        
+
+
+
 
 
 family_actions = FamilyActions()
