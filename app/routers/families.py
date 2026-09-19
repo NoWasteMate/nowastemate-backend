@@ -37,3 +37,7 @@ def update_family_name(family: Family, user = Depends(authorization_actions.veri
 def update_family_owner(member: FamilyMember, user = Depends(authorization_actions.verify_user_token)):
     return family_actions.edit_family_owner(user["uid"], member)
 
+@router.delete("/family_member", tags=['Families'])
+def remove_family_member(member: FamilyMember, user = Depends(authorization_actions.verify_user_token)):
+    return family_actions.delete_family_member(user["uid"], member)
+
