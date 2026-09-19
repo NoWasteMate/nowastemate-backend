@@ -241,6 +241,56 @@ class FamilyActions:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Not the family owner")
+        
+    def delete_family_member(self, uid: str, member: FamilyMember):
+
+        user_doc_ref = store.collection("users").document(uid)
+
+        user_check = user_doc_ref.get()
+        #https://stackoverflow.com/questions/51483234/how-to-know-if-document-exists-in-firestore-python
+        if not user_check.exists:
+            return "error"
+
+        user_doc = user_check.to_dict()
+
+        fam_id = user_doc["familyId"]
+
+        fam_doc_ref = store.collection("family").document(fam_id)
+
+        fam_doc = fam_doc_ref.get()
+
+        fam = fam_doc.to_dict()
+
+        members = fam["members"]
+
+        if uid == fam["ownerId"]:
+                if member.member in members:
+                    members.remove(member.member)
+
+                    fam_doc_ref.update({
+                    "members": members
+                    })
+
+                    member_doc_ref = store.collection("users").document(member.member)
+                    #https://firebase.google.com/docs/firestore/manage-data/delete-data#fields
+                    member_doc_ref.update({
+                        "familyId": firestore.DELETE_FIELD
+                    })
+                    return {"success": "Member removed"}
+                else:
+                    raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST, 
+                    detail="Member currently not apart of the family")
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Not the family owner")
+
+
+
+            
+        
+
 
         
 
