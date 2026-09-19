@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends
 
 from app.models.Family import Family
 from app.models.FamilyJoinCode import FamilyJoinCode
+from app.models.FamilyMember import FamilyMember
 from app.actions.authorization_actions import authorization_actions
 from app.actions.family_actions import family_actions
 
@@ -31,3 +32,8 @@ def get_family_members(user = Depends(authorization_actions.verify_user_token)):
 @router.put("/family_name", tags=['Families'])
 def update_family_name(family: Family, user = Depends(authorization_actions.verify_user_token)):
     return family_actions.edit_family_name(user["uid"], family)
+
+@router.put("/family_owner", tags=['Families'])
+def update_family_owner(member: FamilyMember, user = Depends(authorization_actions.verify_user_token)):
+    return family_actions.edit_family_owner(user["uid"], member)
+

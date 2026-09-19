@@ -1,5 +1,6 @@
 from app.models.Family import Family
 from app.models.FamilyJoinCode import FamilyJoinCode
+from app.models.FamilyMember import FamilyMember
 from app.firebase import firestore, store
 from fastapi import HTTPException, status
 
@@ -204,6 +205,44 @@ class FamilyActions:
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Not the family owner")
 
+    def edit_family_owner(self, uid: str, member: FamilyMember):
+                
+        user_doc_ref = store.collection("users").document(uid)
+
+        user_check = user_doc_ref.get()
+        #https://stackoverflow.com/questions/51483234/how-to-know-if-document-exists-in-firestore-python
+        if not user_check.exists:
+            return "error"
+
+        user_doc = user_check.to_dict()
+
+        fam_id = user_doc["familyId"]
+
+        fam_doc_ref = store.collection("family").document(fam_id)
+
+        fam_doc = fam_doc_ref.get()
+
+        fam = fam_doc.to_dict()
+        #https://fastapi.tiangolo.com/tutorial/response-status-code/#about-http-status-codes
+        #https://fastapi.tiangolo.com/reference/status/
+        if member not in fam["members"]:
+            raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST, 
+                    detail="New owner is not currently apart of the family")
+
+        if uid == fam["ownerId"]:
+            fam_doc_ref.update(
+                {
+                    'ownerId': member
+                }
+            )
+            return {"success": "Family owner updated"}
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Not the family owner")
+
+        
 
  
         
