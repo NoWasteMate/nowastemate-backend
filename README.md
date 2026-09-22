@@ -8,3 +8,4 @@ Python based backend for
 ❯ pip install pydantic
 ❯ pip install python-dotenv
 ❯ pip install -q -U google-genai
+❯ pip install httpx
