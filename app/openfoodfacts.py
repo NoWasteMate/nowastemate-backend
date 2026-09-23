@@ -44,7 +44,7 @@ def fetch_product(barcode: str) -> dict:
     try: 
         response = client.get(
             f"/api/v2/product/{barcode}.json",
-            params={"fields", fields},
+            params={"fields": fields},
         )
     except httpx.TimeoutException as e:
         logger.warning("OFF timed out for barcode %s", barcode)
@@ -54,7 +54,31 @@ def fetch_product(barcode: str) -> dict:
         logger.warning("OFF request failed for barcode %s: %s", barcode, e)
         raise BarcodeUpstreamError(barcode) from e
 
-    # checking for other error codes TODO
+    # checking for other error codes 
+    if response.status_code == 404:
+        logger.info("OFF has no product for barcode %s", barcode)
+        raise BarcodeNotFoundError(barcode)
 
+    if response.status_code in (429, 503):
+        logger.warning("OFF throttled us (%s) for barcode %s", response.status_code, barcode)
+        raise BarcodeOverloadedError(barcode)
+
+    if response.status_code != 200:
+        logger.warning("OFF returned %s for barcode %s", response.status_code, barcode)
+        raise BarcodeUpstreamError(barcode)
+
+
+    # when the product from the barcode is retrieved (200)
+    try:
+        payload = response.json()
+    except ValueError as e:
+        logger.warning("OFF returned non-JSON for barcode %s", barcode)
+        raise BarcodeUpstreamError(barcode) from e
+
+    # if the product from the barcode is not retrieved
+    product = payload.get("product")
+    if payload.get("status") != 1 or not product:
+        logger.info("OFF returned status 0 for barcode %s", barcode)
+        raise BarcodeNotFoundError(barcode)
     
-    return
+    return product
