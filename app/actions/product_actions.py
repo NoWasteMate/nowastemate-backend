@@ -1,6 +1,24 @@
 from app.models.Product import Product, ProductUpdate
 from app.firebase import firestore, store
 
+from datetime import datetime, timezone
+
+from fastapi import HTTPException
+
+from app import openfoodfacts
+from app.models.Product import Product, ProductCategory, ProductUpdate
+
+# since OFF tags are vocabulary mis-matched.
+# set literals: https://docs.python.org/3/tutorial/datastructures.html#sets
+category_priority = [
+    (ProductCategory.frozen,   {"frozen-foods"}),
+    (ProductCategory.canned,   {"canned-foods"}),
+    (ProductCategory.beverage, {"beverages", "waters", "juices", "sodas"}),
+    (ProductCategory.dairy,    {"dairies", "milks", "cheeses", "yogurts", "butters"}),
+    (ProductCategory.meat,     {"meats", "poultry", "fishes", "seafood"}),
+    (ProductCategory.produce,  {"fruits", "vegetables", "fresh-plant-based"}),
+    (ProductCategory.grains,   {"cereals-and-potatoes", "cereals", "breads", "pastas", "rices"}),
+]
 
 class ProductActions:
 
@@ -99,5 +117,42 @@ class ProductActions:
 
         return {"id": product_id, "message": "Product updated"}
 
+
+    # barcode methods
+    # maps OFF's categories_tags to one of our ProductCategory values.
+    # tags are (en:Petit-déjeuners, fr:Nutella) for example
+    # set intersection (&): https://docs.python.org/3/library/stdtypes.html#frozenset.intersection
+    # non-public method convention: https://peps.python.org/pep-0008/#descriptive-naming-styles
+    def map_category(self, tags: list[str] | None) -> ProductCategory:
+        if not tags:
+            return ProductCategory.other
+
+        en_tags = {tag.lower()[3:] for tag in tags if tag.lower().startswith("en:")}
+
+        for category, keywords in category_priority:
+            if en_tags & keywords:
+                return category
+
+        return ProductCategory.other
+
+    def get_barcode_details(self, barcode: str) -> Product:
+
+        try:
+            raw = openfoodfacts.fetch_product(barcode)
+        except openfoodfacts.BarcodeNotFoundError:
+            raise HTTPException(status_code=404, detail="Product not found, add manually")
+        except openfoodfacts.BarcodeOverloadedError:
+            raise HTTPException(status_code=503, detail="Barcode service busy, try again")
+        except openfoodfacts.BarcodeTimeoutError:
+            raise HTTPException(status_code=504, detail="Barcode service timed out")
+        except openfoodfacts.BarcodeUpstreamError:
+            raise HTTPException(status_code=502, detail="Barcode service unavailable")
+
+        return Product(
+            name=raw.get("product_name") or "",
+            quantity=1,
+            createdAt=datetime.now(timezone.utc).isoformat(),
+            category=self.map_category(raw.get("categories_tags")),
+        )
 
 product_actions = ProductActions()
