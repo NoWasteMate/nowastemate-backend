@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Body
+from fastapi import APIRouter, Depends, Body, Path
 
 from app.models.Product import Product, ProductList, ProductUpdate
 from app.actions.authorization_actions import authorization_actions
@@ -38,6 +38,16 @@ def delete_product(product_id: str, user = Depends(authorization_actions.verify_
 @router.put("/putProduct/{product_id}", tags=['Products'])
 def update_product(product_id: str, product: ProductUpdate, user = Depends(authorization_actions.verify_user_token)):
     return product_actions.update_product(user["uid"], product_id, product)
+
+# looks a barcode up on OpenFoodFacts and returns it as a Product without saving it.
+# path validations: https://fastapi.tiangolo.com/tutorial/path-params-numeric-validations/
+# pattern (regex): https://fastapi.tiangolo.com/tutorial/query-params-str-validations/
+@router.get("/getBarcodeDetails/{barcode}", tags=['Products'], response_model=Product)
+def get_barcode_details(
+    barcode: str = Path(pattern=r"^\d{8,14}$"),
+    user = Depends(authorization_actions.verify_user_token)
+):
+    return product_actions.get_barcode_details(barcode)
 
 # PRODUCTS
 #TODO adds an empty product list to user object (does not work at the moment)

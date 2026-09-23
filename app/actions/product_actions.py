@@ -1,4 +1,4 @@
-from app.models.Product import Product, ProductUpdate
+from app.models.Product import Product, ProductUpdate, ProductCategory
 from app.firebase import firestore, store
 
 from datetime import datetime, timezone
@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 from fastapi import HTTPException
 
 from app import openfoodfacts
-from app.models.Product import Product, ProductCategory, ProductUpdate
+
 
 # since OFF tags are vocabulary mis-matched.
 # set literals: https://docs.python.org/3/tutorial/datastructures.html#sets
@@ -122,7 +122,6 @@ class ProductActions:
     # maps OFF's categories_tags to one of our ProductCategory values.
     # tags are (en:Petit-déjeuners, fr:Nutella) for example
     # set intersection (&): https://docs.python.org/3/library/stdtypes.html#frozenset.intersection
-    # non-public method convention: https://peps.python.org/pep-0008/#descriptive-naming-styles
     def map_category(self, tags: list[str] | None) -> ProductCategory:
         if not tags:
             return ProductCategory.other
