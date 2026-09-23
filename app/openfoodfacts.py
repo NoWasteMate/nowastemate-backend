@@ -1,5 +1,6 @@
 # references
 # https://openfoodfacts.github.io/openfoodfacts-server/api/  
+# https://openfoodfacts.github.io/openfoodfacts-server/api/#authentication
 # https://openfoodfacts.github.io/openfoodfacts-server/api/ref-v2/  (v2 product endpoint and the fields parameter)
 # https://www.python-httpx.org/advanced/clients/    
 # https://www.python-httpx.org/advanced/timeouts/    
@@ -11,18 +12,26 @@
 # https://www.python-httpx.org/advanced/timeouts/  
 # https://docs.python.org/3/howto/logging.html
 
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
 import logging
 import httpx
 
 logger = logging.getLogger(__name__)
 
+
 base_url = "https://world.openfoodfacts.org"
 fields = "code,product_name,categories_tags"
 timeout = httpx.Timeout(5.0)
+# need a team email to avoid getting flagged as bots from the API
+user_agent = os.getenv("OFF_USER_AGENT", "NoWasteMate/0.5")
 
 client = httpx.Client(
     base_url=base_url,
-    timeout=timeout
+    timeout=timeout,
+    headers={"User-Agent": user_agent},
 )
 
 # error fallbacks 
