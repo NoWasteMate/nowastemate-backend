@@ -47,9 +47,14 @@ def fetch_product(barcode: str) -> dict:
             params={"fields", fields},
         )
     except httpx.TimeoutException as e:
-        return 
+        logger.warning("OFF timed out for barcode %s", barcode)
+        raise BarcodeTimeoutError(barcode) from e
+    
     except httpx.RequestError as e:
-        return
+        logger.warning("OFF request failed for barcode %s: %s", barcode, e)
+        raise BarcodeUpstreamError(barcode) from e
+
+    # checking for other error codes TODO
 
     
     return
