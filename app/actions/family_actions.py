@@ -169,9 +169,14 @@ class FamilyActions:
             json = doc.to_dict()
 
             if json != None:
-                json = json["email"]
-
-                arr.append(json)
+                email = json["email"]
+                #send id and email
+                arr.append(
+                    {
+                        "member": i,
+                        "email": email
+                    }
+                )
 
         return arr
     
@@ -225,7 +230,10 @@ class FamilyActions:
         fam = fam_doc.to_dict()
         #https://fastapi.tiangolo.com/tutorial/response-status-code/#about-http-status-codes
         #https://fastapi.tiangolo.com/reference/status/
-        if member not in fam["members"]:
+
+        if member.member not in fam["members"]:
+            print(member)
+            print(fam["members"])
             raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST, 
                     detail="New owner is not currently apart of the family")
@@ -233,7 +241,7 @@ class FamilyActions:
         if uid == fam["ownerId"]:
             fam_doc_ref.update(
                 {
-                    'ownerId': member
+                    'ownerId': member.member
                 }
             )
             return {"success": "Family owner updated"}
