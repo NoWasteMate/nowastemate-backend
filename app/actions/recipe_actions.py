@@ -1,6 +1,7 @@
 from fastapi import HTTPException, status
 
 from app.models.Recipe.Recipe import Recipe
+from app.models.Product import ProductOutcome
 from app.firebase import firestore, store
 
 from app.gemini import generate_recipe
@@ -46,7 +47,13 @@ class RecipeActions:
 
         products = []
         for document in products_document:
-            products.append({"id": document.id, **document.to_dict()})
+            data = document.to_dict()
+
+            # only use active products
+            if data.get("outcome", ProductOutcome.active.value) != ProductOutcome.active.value:
+                continue
+
+            products.append({"id": document.id, **data})
 
         recipe_json: Recipe = generate_recipe(products)
 
