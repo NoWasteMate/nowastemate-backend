@@ -19,6 +19,12 @@ class ProductCategory(str, Enum):
     beverage = "beverage"
     other = "other"
 
+class ProductOutcome(str, Enum):
+    active = "active"
+    consumed = "consumed"
+    usedInRecipe = "usedInRecipe"
+    wasted = "wasted"
+
 #subject to change
 class Product(BaseModel):
     name: str
@@ -26,17 +32,23 @@ class Product(BaseModel):
     createdAt: str
     createdBy: Optional[str] = None
     dateExpiration: Optional[datetime] = None
-    dateRemoved: Optional[str] = None
-    usedInRecipe: Optional[str] = None
+    #dateRemoved: Optional[str] = None
+    #usedInRecipe: Optional[str] = None
     category: ProductCategory
+    outcome: ProductOutcome = ProductOutcome.active
+    outcomeAt: Optional[datetime] = None
 
+#subject to change
 class ProductUpdate(BaseModel):
     name: Optional[str] = None
     quantity: Optional[int] = None
     category: Optional[ProductCategory] = None
     dateExpiration: Optional[datetime] = None
-    dateRemoved: Optional[str] = None
-    usedInRecipe: Optional[str] = None
+    #dateRemoved: Optional[str] = None
+    #usedInRecipe: Optional[str] = None
+
+class ProductOutcomeUpdate(BaseModel):
+    outcome: ProductOutcome
 
 class ProductList(BaseModel):
     products: list[Product]
