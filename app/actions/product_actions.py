@@ -123,10 +123,36 @@ class ProductActions:
 
         return {"id": product_id, "message": "Product updated"}
 
-    #TODO marking a product as consumed or wasted (analytics)
+    # marking a product as consumed or wasted (analytics)
     # reference: https://firebase.google.com/docs/firestore/manage-data/add-data#server_timestamp
     def mark_product_outcome(self, uid: str, product_id: str, outcome: ProductOutcome):
-        return
+
+        # user can only mark consumed or wasted
+        if outcome not in (ProductOutcome.consumed, ProductOutcome.wasted):
+            raise HTTPException(status_code=422, detail="Outcome must be consumed or wasted")
+
+        product_ref = (
+            store.collection("users")
+            .document(uid)
+            .collection("products")
+            .document(product_id)
+        )
+
+        product = product_ref.get()
+
+        if not product.exists:
+            raise HTTPException(status_code=404, detail="Product Not Found")
+
+        # the product's outcome can only be changed once
+        if product.to_dict().get("outcome", ProductOutcome.active.value) != ProductOutcome.active.value:
+            raise HTTPException(status_code=409, detail="Product Already Marked")
+
+        product_ref.update({
+            "outcome": outcome.value,
+            "outcomeAt": firestore.SERVER_TIMESTAMP
+        })
+
+        return {"id": product_id, "outcome": outcome.value, "message": "Product Marked"}
 
     # barcode methods
     # maps OFF's categories_tags to one of our ProductCategory values.
