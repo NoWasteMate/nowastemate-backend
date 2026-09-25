@@ -1,4 +1,4 @@
-from app.models.Product import Product, ProductUpdate, ProductCategory
+from app.models.Product import Product, ProductUpdate, ProductCategory, ProductOutcome
 from app.firebase import firestore, store
 
 from datetime import datetime, timezone
@@ -38,7 +38,8 @@ class ProductActions:
                 "name": product.name,
                 "quantity": product.quantity,
                 "createdAt": firestore.SERVER_TIMESTAMP,
-                "category": product.category.value
+                "category": product.category.value,
+                "outcome": ProductOutcome.active.value
             })
 
         batch.commit()
@@ -81,7 +82,12 @@ class ProductActions:
 
         products = []
         for document in products_document:
-            products.append({"id": document.id, **document.to_dict()})
+            data = document.to_dict()
+
+            if data.get("outcome", ProductOutcome.active.value) != ProductOutcome.active.value:
+                continue
+
+            products.append({"id": document.id, **data})
 
         return products
 
@@ -117,6 +123,10 @@ class ProductActions:
 
         return {"id": product_id, "message": "Product updated"}
 
+    #TODO marking a product as consumed or wasted (analytics)
+    # reference: https://firebase.google.com/docs/firestore/manage-data/add-data#server_timestamp
+    def mark_product_outcome(self, uid: str, product_id: str, outcome: ProductOutcome):
+        return
 
     # barcode methods
     # maps OFF's categories_tags to one of our ProductCategory values.
