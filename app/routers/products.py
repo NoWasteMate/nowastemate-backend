@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, Body, Path
 
-from app.models.Product import Product, ProductList, ProductUpdate
+from app.models.Product import Product, ProductList, ProductUpdate, ProductOutcomeUpdate
 from app.actions.authorization_actions import authorization_actions
 from app.actions.product_actions import product_actions
 
@@ -38,6 +38,12 @@ def delete_product(product_id: str, user = Depends(authorization_actions.verify_
 @router.put("/putProduct/{product_id}", tags=['Products'])
 def update_product(product_id: str, product: ProductUpdate, user = Depends(authorization_actions.verify_user_token)):
     return product_actions.update_product(user["uid"], product_id, product)
+
+# marks a product as consumed or wasted so it leaves the product list
+# reference: https://firebase.google.com/docs/firestore/manage-data/add-data#update-data
+@router.put("/markProductOutcome/{product_id}", tags=['Products'])
+def mark_product_outcome(product_id: str, body: ProductOutcomeUpdate, user = Depends(authorization_actions.verify_user_token)):
+    return product_actions.mark_product_outcome(user["uid"], product_id, body.outcome)
 
 # looks a barcode up on OpenFoodFacts and returns it as a Product without saving it.
 # path validations: https://fastapi.tiangolo.com/tutorial/path-params-numeric-validations/
