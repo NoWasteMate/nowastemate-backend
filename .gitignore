@@ -209,3 +209,6 @@ firebase-admin.json
 .DS_Store
 
 google-cloud-sdk/
+
+#ignore dataset from ML model. Original can be found at https://www.kaggle.com/datasets/kritikseth/fruit-and-vegetable-image-recognition/data
+ML/dataset
