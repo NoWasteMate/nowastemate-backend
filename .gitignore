@@ -209,3 +209,9 @@ firebase-admin.json
 .DS_Store
 
 google-cloud-sdk/
+
+#ignore dataset from ML model. Original can be found at https://www.kaggle.com/datasets/kritikseth/fruit-and-vegetable-image-recognition/data
+ML/dataset
+
+#ignore the exporting mlpackage, as this will be dragged into frontend app instead
+ProduceClassifier.mlpackage
