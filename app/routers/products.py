@@ -43,7 +43,7 @@ def update_product(product_id: str, product: ProductUpdate, user = Depends(autho
 # reference: https://firebase.google.com/docs/firestore/manage-data/add-data#update-data
 @router.put("/markProductOutcome/{product_id}", tags=['Products'])
 def mark_product_outcome(product_id: str, body: ProductOutcomeUpdate, user = Depends(authorization_actions.verify_user_token)):
-    return product_actions.mark_product_outcome(user["uid"], product_id, body.outcome)
+    return product_actions.mark_product_outcome(user["uid"], product_id, body.outcome, body.wasteReason)
 
 # looks a barcode up on OpenFoodFacts and returns it as a Product without saving it.
 # path validations: https://fastapi.tiangolo.com/tutorial/path-params-numeric-validations/
