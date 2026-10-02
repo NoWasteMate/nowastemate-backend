@@ -1,5 +1,7 @@
-from app.models.Product import Product, ProductUpdate, ProductCategory, ProductOutcome
+from app.models.Product import Product, ProductUpdate, ProductCategory, ProductOutcome, WasteReason
 from app.firebase import firestore, store
+
+from typing import Optional
 
 from datetime import datetime, timezone
 
@@ -125,11 +127,18 @@ class ProductActions:
 
     # marking a product as consumed or wasted (analytics)
     # reference: https://firebase.google.com/docs/firestore/manage-data/add-data#server_timestamp
-    def mark_product_outcome(self, uid: str, product_id: str, outcome: ProductOutcome):
+    def mark_product_outcome(self, uid: str, product_id: str, outcome: ProductOutcome, waste_reason: Optional[WasteReason] = None):
 
         # user can only mark consumed or wasted
         if outcome not in (ProductOutcome.consumed, ProductOutcome.wasted):
             raise HTTPException(status_code=422, detail="Outcome must be consumed or wasted")
+
+        # a wasted product error checking
+        if outcome == ProductOutcome.wasted and waste_reason is None:
+            raise HTTPException(status_code=422, detail="Waste reason is required when marking wasted")
+
+        if outcome == ProductOutcome.consumed and waste_reason is not None:
+            raise HTTPException(status_code=422, detail="Waste reason is only allowed when marking wasted")
 
         product_ref = (
             store.collection("users")
@@ -149,10 +158,11 @@ class ProductActions:
 
         product_ref.update({
             "outcome": outcome.value,
-            "outcomeAt": firestore.SERVER_TIMESTAMP
+            "outcomeAt": firestore.SERVER_TIMESTAMP,
+            "wasteReason": waste_reason.value if waste_reason else None
         })
 
-        return {"id": product_id, "outcome": outcome.value, "message": "Product Marked"}
+        return {"id": product_id, "outcome": outcome.value, "wasteReason": waste_reason.value if waste_reason else None, "message": "Product Marked"}
 
     # barcode methods
     # maps OFF's categories_tags to one of our ProductCategory values.
