@@ -1,7 +1,6 @@
 text = open("scripts/ingredients.txt").read()
 
 text_blocks = text.split("\n\n")
-print(len(text_blocks))
 
 names_prefix = "en: "
 parents_prefix = "< en: "
@@ -35,7 +34,6 @@ for block in text_blocks:
     if entry["names"]:
         entries.append(entry)
 
-print(len(entries))
 
 by_name = {}
 
@@ -43,5 +41,59 @@ for entry in entries:
     for name in entry["names"]:
         by_name[name.lower()] = entry
 
-print(by_name["eggs"])
-print(by_name["chicken egg"])
+
+def find_allergens(entry):
+    allergens = []
+    if entry["allergen"]:
+        allergens.append(entry["allergen"])
+
+    for parent_name in entry["parents"]:
+        parent = by_name.get(parent_name.lower())
+        if parent:
+            for allergen in find_allergens(parent):
+                if allergen not in allergens:
+                    allergens.append(allergen)
+
+    return allergens
+
+def find_flag(entry, flag):
+
+    if entry[flag]:
+        return entry[flag]
+
+    found = []
+
+    for parent_name in entry["parents"]:
+        parent = by_name.get(parent_name.lower())
+        if parent:
+            found.append(find_flag(parent, flag))
+
+    if "no" in found:
+        return "no"
+    if "maybe" in found:
+        return "maybe"
+    if "yes" in found:
+        return "yes"
+
+    return None
+
+
+
+
+# ----- Debug -----
+
+def debug_top_level():
+    top_level = []
+
+    for entry in entries:
+        if not entry["parents"]:
+            top_level.append(entry["names"][0])
+
+    print(f"Length: {len(top_level)}, Top Level: {sorted(top_level)}")
+
+
+debug_top_level()
+
+print(find_flag(by_name["chicken egg"], "vegan"))
+print(find_flag(by_name["chicken egg"], "vegetarian"))
+print(find_flag(by_name["vegetable shortening"], "vegan"))
