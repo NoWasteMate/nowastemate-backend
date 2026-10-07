@@ -1,3 +1,6 @@
+import re
+from unidecode import unidecode
+
 text = open("scripts/ingredients.txt").read()
 
 text_blocks = text.split("\n\n")
@@ -17,6 +20,22 @@ category_roots = [
     ("grains", {"cereal", "flour", "rice", "bread", "dough"}),
     ("produce", {"vegetable", "fruit", "herb", "mushroom"}),
 ]
+
+# OFF allergen names to Health Canada's priority allergens
+#https://www.canada.ca/en/health-canada/services/food-allergies-intolerances/food-allergies.html
+allergen_names = {
+    "eggs": "eggs",
+    "milk": "milk",
+    "mustard": "mustard",
+    "peanuts": "peanuts",
+    "crustaceans": "crustaceans and molluscs",
+    "molluscs": "crustaceans and molluscs",
+    "fish": "fish",
+    "sesame-seeds": "sesame seeds",
+    "soybeans": "soy",
+    "nuts": "tree nuts",
+}
+
 
 entries = []
 
@@ -115,6 +134,33 @@ def find_category(entry):
 
     return "other"
 
+# Drops any OFF allergens that aren't on Health Canada's list (celery, lupin) and gluten, which becomes glutenFree
+def map_allergens(off_allergens):
+    allergens = []
+
+    for allergen in off_allergens:
+        name = allergen_names.get(allergen)
+        if name and name not in allergens:
+            allergens.append(name)
+
+    return allergens
+
+# OFF only lists gluten where it's present
+# Missing data will be listed as "maybe" instead of "yes" by default
+def find_gluten_free(entry):
+    if "gluten" in find_allergens(entry):
+        return "no"
+    return "maybe"
+
+# Keys follow OFF's Python SDK get_tag() rule so they match OFF ids ("Crème fraîche" -> "creme-fraiche")
+# https://github.com/openfoodfacts/openfoodfacts-python/blob/develop/src/openfoodfacts/utils/text.py
+def make_key(name):
+    # Turns accented and other non-English letters into their closest ASCII ("è" → "e", "ł" → "l")
+    # https://pypi.org/project/Unidecode/
+    # https://stackoverflow.com/questions/517923/what-is-the-best-way-to-remove-accents-normalize-in-a-python-unicode-string/2633310#2633310
+    plain = unidecode(name).lower()
+    # OFF turns punctuation into "-" ("cow's milk" → "cow-s-milk")
+    return re.sub(r"[^a-z0-9]+", "-", plain).strip("-")
 
 # ----- Debug -----
 
@@ -132,3 +178,11 @@ def debug_top_level():
 #     print(f"{name}: {find_category(by_name[name])}")
 
 # print(find_category(by_name.get("apple")))
+
+# print(map_allergens(find_allergens(by_name["soy and sesame sauce"])))
+# print(map_allergens(find_allergens(by_name["cheddar"])))
+# print(map_allergens(find_allergens(by_name["wheat starch"])))
+#
+# print(find_gluten_free(by_name["bulgur"]))
+# print(find_gluten_free(by_name["bread"]))
+# print(find_gluten_free(by_name["carrot"]))
