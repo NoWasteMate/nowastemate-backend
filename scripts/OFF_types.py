@@ -2,6 +2,8 @@ import re
 from pprint import pformat
 from unidecode import unidecode
 
+# Pinned to OFF commit e3225ff (2026-10-05). To re-import, download a newer one, update this line and review the diff
+# https://github.com/openfoodfacts/openfoodfacts-server/blob/e3225fffbc4639101950f71202935e2aab7245ce/taxonomies/food/ingredients.txt
 text = open("scripts/ingredients.txt").read()
 
 text_blocks = text.split("\n\n")
@@ -32,7 +34,7 @@ allergen_names = {
     "crustaceans": "crustaceans and molluscs",
     "molluscs": "crustaceans and molluscs",
     "fish": "fish",
-    "sesame-seeds": "sesame seeds",
+    "sesame-seeds": "sesame",
     "soybeans": "soy",
     "nuts": "tree nuts",
 }
@@ -71,9 +73,10 @@ for block in text_blocks:
 by_name = {}
 
 # Build lookup hash map
+# setdefault so the first entry keeps a shared name, same as the write loop below
 for entry in entries:
     for name in entry["names"]:
-        by_name[name.lower()] = entry
+        by_name.setdefault(name.lower(), entry)
 
 # ---- Functions ----
 
@@ -191,6 +194,9 @@ def find_parent_keys(entry):
 
 product_types = {}
 
+# Every name and synonym already given to a type, so one name never points at two types
+used_names = set()
+
 for entry in entries:
     if not keep_entry(entry):
         continue
@@ -198,14 +204,24 @@ for entry in entries:
     key = make_key(entry["names"][0])
 
     # OFF repeats a few blocks according to our Opus 5.5 scan (broccoli, wild blueberry), first one should therefore win
-    if key in product_types:
+    # Also skips entries whose name is another type's synonym ("pepeiao" is already a synonym of "pepeao")
+    if key in product_types or entry["names"][0].lower() in used_names:
         continue
+
+    # Drops synonyms another type already has ("maida" stays on "maida", not "refined wheat flour")
+    # and repeats inside the same line ("whole goat milk, whole goat milk")
+    synonyms = []
+    used_names.add(entry["names"][0].lower())
+    for name in entry["names"][1:]:
+        if name.lower() not in used_names:
+            synonyms.append(name)
+            used_names.add(name.lower())
 
     # Unknown diet flags are "maybe" so they're never treated as safe
     product_types[key] = {
         "name": entry["names"][0],
         "parents": find_parent_keys(entry),
-        "synonyms": entry["names"][1:],
+        "synonyms": synonyms,
         "category": find_category(entry),
         "allergens": map_allergens(find_allergens(entry)),
         "vegan": find_flag(entry, "vegan") or "maybe",
