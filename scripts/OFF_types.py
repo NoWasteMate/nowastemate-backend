@@ -222,28 +222,3 @@ header = (
 with open("app/vocabulary/off_product_types.py", "w") as file:
     file.write(header)
     file.write("OFF_PRODUCT_TYPES = " + pformat(product_types, sort_dicts=False) + "\n")
-
-# ----- Debug -----
-
-def debug_top_level():
-    top_level = []
-
-    for entry in entries:
-        if not entry["parents"]:
-            top_level.append(entry["names"][0])
-
-    print(f"Length: {len(top_level)}, Top Level: {sorted(top_level)}")
-
-#
-# for name in ["cheddar", "carrot", "chicken breast", "orange juice", "chicken egg", "salt"]:
-#     print(f"{name}: {find_category(by_name[name])}")
-
-# print(find_category(by_name.get("apple")))
-
-# print(map_allergens(find_allergens(by_name["soy and sesame sauce"])))
-# print(map_allergens(find_allergens(by_name["cheddar"])))
-# print(map_allergens(find_allergens(by_name["wheat starch"])))
-#
-# print(find_gluten_free(by_name["bulgur"]))
-# print(find_gluten_free(by_name["bread"]))
-# print(find_gluten_free(by_name["carrot"]))
