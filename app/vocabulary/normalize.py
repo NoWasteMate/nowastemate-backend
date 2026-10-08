@@ -2,7 +2,7 @@ import re
 from unidecode import unidecode
 from nltk.stem import WordNetLemmatizer
 
-from app.vocabulary.off_product_types import OFF_PRODUCT_TYPES
+from app.vocabulary.product_types import PRODUCT_TYPES
 
 # Lemmatizing instead of stemming, stemming turns "leaves" into "leav"
 # https://www.nltk.org/api/nltk.stem.WordNetLemmatizer.html
@@ -44,7 +44,7 @@ def clean(name: str):
 
 # Looks up a type by any of its names, cleaned like the user's input so "Grits" and "grits" both become "grit"
 names_to_keys = {}
-for key, product_type in OFF_PRODUCT_TYPES.items():
+for key, product_type in PRODUCT_TYPES.items():
     for name in [product_type["name"]] + product_type["synonyms"]:
         names_to_keys.setdefault(" ".join(clean(name)), key)
 
