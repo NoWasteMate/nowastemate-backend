@@ -6,3 +6,4 @@ class Ingredient(BaseModel):
     quantity: float
     unit: str
     productId: Optional[str] = None
+    productType: Optional[str] = None
