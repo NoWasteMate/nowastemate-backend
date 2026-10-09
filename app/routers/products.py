@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, Body, Path
+from typing import Optional
 
 from app.models.Product import Product, ProductList, ProductUpdate, ProductOutcomeUpdate
 from app.actions.authorization_actions import authorization_actions
@@ -54,6 +55,12 @@ def get_barcode_details(
     user = Depends(authorization_actions.verify_user_token)
 ):
     return product_actions.get_barcode_details(barcode)
+
+# returns the Product Type list unless the app already has this version
+# query params: https://fastapi.tiangolo.com/tutorial/query-params/#optional-parameters
+@router.get("/productTypes", tags=['Products'])
+def get_product_types(version: Optional[int] = None, user = Depends(authorization_actions.verify_user_token)):
+    return product_actions.get_product_types(version)
 
 # PRODUCTS
 #TODO adds an empty product list to user object (does not work at the moment)

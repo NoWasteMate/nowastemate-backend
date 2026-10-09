@@ -1,4 +1,5 @@
 import re
+from typing import Optional
 from unidecode import unidecode
 from nltk.stem import WordNetLemmatizer
 
@@ -50,7 +51,7 @@ for key, product_type in PRODUCT_TYPES.items():
 
 
 # Exact matches only, so "sour cream" never becomes "cream"
-def normalize_name(name: str):
+def normalize_name(name: str, category_tags: Optional[list[str]] = None):
     words = clean(name)
 
     key = names_to_keys.get(" ".join(words))
@@ -70,5 +71,14 @@ def normalize_name(name: str):
     key = names_to_keys.get(" ".join(kept))
     if key:
         return key, "strip"
+
+    # Barcode tags last, most specific tag is at the end
+    # https://github.com/openfoodfacts/openfoodfacts-server/blob/4ae1e39fa6882a83bd76f3924911e07baeb4922d/lib/ProductOpener/Tags.pm#L2866-L2950
+    for tag in reversed(category_tags or []):
+        if not tag.startswith("en:"):
+            continue
+        key = names_to_keys.get(" ".join(clean(tag[3:])))
+        if key:
+            return key, "barcodeCategoryTag"
 
     return None, None

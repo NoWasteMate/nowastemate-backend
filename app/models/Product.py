@@ -40,7 +40,10 @@ class Product(BaseModel):
     dateExpiration: Optional[datetime] = None
     #dateRemoved: Optional[str] = None
     #usedInRecipe: Optional[str] = None
-    category: ProductCategory
+    category: Optional[ProductCategory] = None
+    productType: Optional[str] = None
+    productTypeSource: Optional[str] = None
+    categoryTags: Optional[list[str]] = None
     outcome: ProductOutcome = ProductOutcome.active
     outcomeAt: Optional[datetime] = None
     wasteReason: Optional[WasteReason] = None
