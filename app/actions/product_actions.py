@@ -8,6 +8,8 @@ from datetime import datetime, timezone
 from fastapi import HTTPException
 
 from app import openfoodfacts
+from app.vocabulary.normalize import normalize_name
+from app.vocabulary.product_types import PRODUCT_TYPES, VERSION
 
 
 # since OFF tags are vocabulary mis-matched.
@@ -35,12 +37,16 @@ class ProductActions:
 
         for product in products:
             prod_ref = doc_ref.document()
+            product_type, product_type_source = normalize_name(product.name)
+            category = self.pick_category(product_type, None)
 
             batch.set(prod_ref, {
                 "name": product.name,
                 "quantity": product.quantity,
                 "createdAt": firestore.SERVER_TIMESTAMP,
-                "category": product.category.value,
+                "category": category.value,
+                "productType": product_type,
+                "productTypeSource": product_type_source,
                 "outcome": ProductOutcome.active.value
             })
 
@@ -61,8 +67,11 @@ class ProductActions:
 
         doc_ref = products_ref.document()
 
+        product.productType, product.productTypeSource = normalize_name(product.name, product.categoryTags)
+        product.category = self.pick_category(product.productType, product.categoryTags)
+
         doc_ref.set({
-            **product.model_dump(),
+            **product.model_dump(exclude={"categoryTags"}),
             "createdAt": firestore.SERVER_TIMESTAMP,
             "createdBy": uid
         })
@@ -121,6 +130,13 @@ class ProductActions:
         )
 
         update_data = product.model_dump(exclude_unset=True)
+
+        # keeps the category picked in Edit
+        if product.name is not None:
+            product_type, product_type_source = normalize_name(product.name)
+            update_data["productType"] = product_type
+            update_data["productTypeSource"] = product_type_source
+
         products_ref.update(update_data)
 
         return {"id": product_id, "message": "Product updated"}
@@ -180,6 +196,15 @@ class ProductActions:
 
         return ProductCategory.other
 
+    # falls back to the barcode tags when the type is "other"
+    def pick_category(self, product_type: Optional[str], category_tags: Optional[list[str]]) -> ProductCategory:
+        if product_type:
+            category = PRODUCT_TYPES[product_type]["category"]
+            if category != "other":
+                return ProductCategory(category)
+
+        return self.map_category(category_tags)
+
     def get_barcode_details(self, barcode: str) -> Product:
 
         try:
@@ -198,6 +223,24 @@ class ProductActions:
             quantity=1,
             createdAt=datetime.now(timezone.utc).isoformat(),
             category=self.map_category(raw.get("categories_tags")),
+            categoryTags=raw.get("categories_tags"),
         )
+
+    # allergens and diet flags left out until the app needs them
+    def get_product_types(self, version: Optional[int]):
+        if version == VERSION:
+            return {"upToDate": True}
+
+        types = []
+        for key, product_type in PRODUCT_TYPES.items():
+            types.append({
+                "key": key,
+                "name": product_type["name"],
+                "synonyms": product_type["synonyms"],
+                "parents": product_type["parents"],
+                "category": product_type["category"],
+            })
+
+        return {"version": VERSION, "types": types}
 
 product_actions = ProductActions()

@@ -10,6 +10,10 @@ WORKDIR $APP_HOME
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
+# WordNet data for lemmatizing in app/vocabulary/normalize.py, downloaded here so Cloud Run never fetches it at runtime
+# https://www.nltk.org/data.html#command-line-installation
+RUN python -m nltk.downloader -d /usr/local/share/nltk_data wordnet
+
 COPY . ./
 
 # https://cloud.google.com/run/docs/container-contract#port
