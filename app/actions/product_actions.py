@@ -242,5 +242,36 @@ class ProductActions:
             })
 
         return {"version": VERSION, "types": types}
+    
+
+
+    def get_waste_diagnostic(self, uid: str, diagnosticProduct: Product):
+            
+            #using existing get_products() but removing the filter for outcomes
+            products_ref = (
+                store.collection("users")
+                .document(uid)
+                .collection("products")
+            )
+
+            products_document = products_ref.stream()
+
+            products = []
+            for document in products_document:
+                data = document.to_dict()
+
+                products.append({"id": document.id, **data})
+
+            #if diagnosticProduct.createdAt < 
+
+            if diagnosticProduct.dateExpiration < datetime.now():
+                return WasteReason.expired
+            
+            
+
+
+            
+            #return products
+    
 
 product_actions = ProductActions()

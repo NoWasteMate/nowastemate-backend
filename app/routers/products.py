@@ -62,6 +62,12 @@ def get_barcode_details(
 def get_product_types(version: Optional[int] = None, user = Depends(authorization_actions.verify_user_token)):
     return product_actions.get_product_types(version)
 
+
+
+@router.get("/get_waste_diagnostic", tags=['Products'])
+def get_product(user = Depends(authorization_actions.verify_user_token)):
+    return product_actions.get_waste_diagnostic(user["uid"])
+
 # PRODUCTS
 #TODO adds an empty product list to user object (does not work at the moment)
 # @app.post("/addProductList")
