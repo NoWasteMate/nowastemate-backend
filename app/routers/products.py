@@ -64,9 +64,9 @@ def get_product_types(version: Optional[int] = None, user = Depends(authorizatio
 
 
 
-@router.get("/get_waste_diagnostic", tags=['Products'])
-def get_product(user = Depends(authorization_actions.verify_user_token)):
-    return product_actions.get_waste_diagnostic(user["uid"])
+@router.get("/get_waste_diagnostic/{product_id}", tags=['Products'])
+def get_product(product_id: str, user = Depends(authorization_actions.verify_user_token)):
+    return product_actions.get_waste_diagnostic(user["uid"], product_id)
 
 # PRODUCTS
 #TODO adds an empty product list to user object (does not work at the moment)
