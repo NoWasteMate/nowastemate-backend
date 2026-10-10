@@ -3,9 +3,9 @@ from app.firebase import firestore, store
 
 from typing import Optional
 
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 
-from fastapi import HTTPException
+from fastapi import HTTPException, status
 
 from app import openfoodfacts
 from app.vocabulary.normalize import normalize_name
@@ -242,5 +242,124 @@ class ProductActions:
             })
 
         return {"version": VERSION, "types": types}
+    
+    #TODO: Further logic could be implemented to use previous waste reasons 
+    #ref timezones https://stackoverflow.com/questions/55714631/firestore-timestamp-fromdate-not-utc
+    #              https://stackoverflow.com/questions/2331592/why-does-datetime-datetime-utcnow-not-contain-timezone-information 
+    #ref timedelta https://www.geeksforgeeks.org/python/python-datetime-timedelta-function/
+    def get_waste_diagnostic(self, uid: str, diagnostic_product: str):
+            
+            #getting specific product we are evaluating on
+            product_ref = (
+                store.collection("users")
+                .document(uid)
+                .collection("products")
+                .document(diagnostic_product)
+            )
+            product_document = product_ref.get()
+
+            if product_document.exists == False:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND, 
+                    detail="Product does not exist")
+
+            product = product_document.to_dict()
+
+
+            #getting product in categorie to calculate the average
+            products_ref = (
+            store.collection("users")
+            .document(uid)
+            .collection("products")
+            )
+
+            #https://firebase.google.com/docs/firestore/query-data/get-data
+            #https://firebase.google.com/docs/firestore/query-data/get-data#get_all_documents_in_a_collection
+            products_document = products_ref.stream()
+
+            category_products = []
+            for document in products_document:
+                data = document.to_dict()
+
+                #filter out own product as well as products not in the selected category
+                if data.get("category") == product["category"] and document.id != diagnostic_product:
+                    category_products.append({"id": document.id, **data})
+
+            avg = 0
+            large_diff = False
+            wasted_count = 0
+
+            avg_stored_wrong = 0
+            stored_wrong = False
+
+            if len(category_products) != 0:
+                for document in category_products:
+                    avg += document["quantity"]
+
+                    if document.get("outcome") == "wasted":
+                        wasted_count += 1
+                        if document.get("wasteReason") == "storedWrong":
+                            avg_stored_wrong += 1
+
+                avg = avg / len(category_products)
+                #checking what percentage of products are stored wrong, if it is abnormally high, we suggest this
+                if wasted_count != 0 and avg_stored_wrong != 0 and wasted_count >= 5:
+                    stored_wrong_percentage = avg_stored_wrong / wasted_count
+                    if stored_wrong_percentage > 0.5:
+                        stored_wrong = True
+                #trigger if the quantity is double that of the average and we have sufficient existing products logged
+                if product["quantity"] / avg >= 2 and len(category_products) > 5:
+                    large_diff = True
+
+                
+
+            #having difference of time available
+            time = datetime.now(timezone.utc)
+            time_since_creation = time - product["createdAt"]
+            time_to_expiry = time - product["dateExpiration"]
+            
+            is_expired = False
+
+            #a baseline to see if product is expired, so we dont have to keep checking
+            if product["dateExpiration"] < datetime.now(timezone.utc):
+                is_expired = True
+
+
+            #if we see product was added very recently, it was likely in error
+            #this goes first and should take priority over any other cases
+            if time_since_creation  <= timedelta(minutes=10):
+                return WasteReason.addedByMistake
+
+            #Bought too much
+            if large_diff:
+                return WasteReason.boughtTooMuch
+            
+            #Stored Wrong
+            if is_expired == False and stored_wrong:
+                return WasteReason.storedWrong
+
+            #Bad Quality
+            if is_expired == False and time_to_expiry <= timedelta(days=-2) and time_since_creation < timedelta(days=1):
+                return WasteReason.badQuality             
+            
+            #Forgot about product
+            #if they have not marked it wasted for 3 days since expiry time, we suggest it may have been forgotten
+            if is_expired and time_to_expiry >= timedelta(days=3):
+                return WasteReason.forgot
+            
+            #Spoiled Early
+            #if there is still 2 days to expiry, and they are marking wasted, we should suggest spoiled early.
+            if is_expired == False and time_to_expiry <= timedelta(days=-2):
+                return WasteReason.spoiledEarly
+            
+            #Expired
+            #picks up if product is expired and no other cases above fit
+            if is_expired:
+                return WasteReason.expired
+            
+            #Baseline return if it doesn't fit any cases.
+            #if other is returned, I will make it not trigger the diagnostic in the UI
+            return WasteReason.other
+    
 
 product_actions = ProductActions()
