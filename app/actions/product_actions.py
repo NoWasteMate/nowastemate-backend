@@ -3,7 +3,7 @@ from app.firebase import firestore, store
 
 from typing import Optional
 
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 
 from fastapi import HTTPException
 
@@ -244,34 +244,84 @@ class ProductActions:
         return {"version": VERSION, "types": types}
     
 
-
-    def get_waste_diagnostic(self, uid: str, diagnosticProduct: Product):
+    #ref timezones https://stackoverflow.com/questions/55714631/firestore-timestamp-fromdate-not-utc
+    #              https://stackoverflow.com/questions/2331592/why-does-datetime-datetime-utcnow-not-contain-timezone-information 
+    #ref 
+    def get_waste_diagnostic(self, uid: str, diagnostic_product: str):
             
-            #using existing get_products() but removing the filter for outcomes
-            products_ref = (
+            #getting product
+            product_ref = (
                 store.collection("users")
                 .document(uid)
                 .collection("products")
+                .document(diagnostic_product)
             )
 
+            product_document = product_ref.get()
+
+            product = product_document.to_dict()
+
+            products_ref = (
+            store.collection("users")
+            .document(uid)
+            .collection("products")
+            )
+
+            #https://firebase.google.com/docs/firestore/query-data/get-data
+            #https://firebase.google.com/docs/firestore/query-data/get-data#get_all_documents_in_a_collection
             products_document = products_ref.stream()
 
-            products = []
+            category_products = []
             for document in products_document:
                 data = document.to_dict()
 
-                products.append({"id": document.id, **data})
+                if data.get("category") == product["category"] and document.id != diagnostic_product:
+                    category_products.append({"id": document.id, **data})
 
-            #if diagnosticProduct.createdAt < 
+            avg = 0
 
-            if diagnosticProduct.dateExpiration < datetime.now():
+
+            for document in category_products:
+                avg += document["quantity"]
+                        
+
+            if len(category_products) != 0:
+                avg = avg / len(category_products)
+
+            time = datetime.now(timezone.utc)
+            #getting diff in minutes https://stackoverflow.com/questions/2788871/date-difference-in-minutes-in-python
+            #having difference of time available if needed.
+            created_minute_diff = round((time - product["createdAt"]).total_seconds() / 60.0)
+            created_hour_diff = round(created_minute_diff / 60)
+            created_day_diff = round(created_hour_diff / 24)
+
+            expired_minute_diff = round((time - product["dateExpiration"]).total_seconds() / 60.0)
+            expired_hour_diff= round(expired_minute_diff / 60)
+            expired_day_diff = round(expired_hour_diff / 24)
+
+            is_expired = False
+
+            if product["dateExpiration"] < datetime.now(timezone.utc):
+                is_expired = True
+
+            #if we see product was added very recently, it was likely in error
+            if created_minute_diff <= 10:
+                return WasteReason.addedByMistake
+            
+            #if they have not marked it wasted for 3 days, we suggest it may have been forgotten
+            if is_expired and expired_day_diff >= 3:
+                return WasteReason.forgot
+            
+            #if there is still 2 days to expiry, and they are marking wasted, we should suggest spoiled early.
+            if is_expired == False and expired_day_diff <= -2:
+                return WasteReason.spoiledEarly
+
+            #generic expiry
+            if is_expired:
                 return WasteReason.expired
             
             
-
-
-            
-            #return products
+            return WasteReason.other
     
 
 product_actions = ProductActions()
