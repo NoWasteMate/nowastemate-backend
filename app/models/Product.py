@@ -33,6 +33,7 @@ class WasteReason(str, Enum):
     forgot = "forgot"
     badQuality = "badQuality"
     storedWrong = "storedWrong"
+    addedByMistake = "addedByMistake"
 
 #subject to change
 class Product(BaseModel):
