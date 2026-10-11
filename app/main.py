@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 
-from app.routers import families, products, users, recipes
+from app.routers import families, products, users, recipes, analytics
 
 # Structure sourced from: https://fastapi.tiangolo.com/tutorial/bigger-applications/#the-main-fastapi
 
@@ -27,6 +27,10 @@ tags_metadata = [
         "name": "Recipes",
         "description": "Operations with recipes"
     },
+    {
+        "name": "Analytics",
+        "description": "Operations with analytics"
+    },
 ]
 
 app = FastAPI (
@@ -41,3 +45,4 @@ app.include_router(families.router)
 app.include_router(products.router)
 app.include_router(users.router)
 app.include_router(recipes.router)
+app.include_router(analytics.router)
