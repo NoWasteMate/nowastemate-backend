@@ -20,3 +20,7 @@ def get_user_information(user = Depends(authorization_actions.verify_user_token)
 @router.put("/editUser", tags=['Users'])
 def edit_request(user_info: UserInfo, user = Depends(authorization_actions.verify_user_token)):
     return user_actions.edit_user(user_info, user)
+
+@router.get("/get_user_info", tags=['Users'])
+def get_current_user_info(user = Depends(authorization_actions.verify_user_token)):
+    return user_actions.get_current_user_info(user["uid"])

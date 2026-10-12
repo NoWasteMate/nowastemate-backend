@@ -58,6 +58,18 @@ class UserActions:
                 raise HTTPException(status_code=409, detail="Email exists already")
         else:
             return {'message': f"user not found"} 
+        
+    def get_current_user_info(self, uid):
+        
+        doc_ref = store.collection("users").document(uid)
+
+        user = doc_ref.get()
+        
+        #https://stackoverflow.com/questions/51483234/how-to-know-if-document-exists-in-firestore-python
+        if user.exists:
+            user = user.to_dict()
+            return user
+        else: raise HTTPException(status_code=404, detail="User not found")
 
 
 user_actions = UserActions()

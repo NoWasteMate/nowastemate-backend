@@ -337,6 +337,48 @@ class FamilyActions:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="family owner cannot leave, the owner must pass their ownership")     
+        
+    def delete_family(self, uid: str):
+
+        user_doc_ref = store.collection("users").document(uid)
+
+        user_check = user_doc_ref.get()
+        #https://stackoverflow.com/questions/51483234/how-to-know-if-document-exists-in-firestore-python
+        if not user_check.exists:
+            return "error"
+
+        user_doc = user_check.to_dict()
+
+        fam_id = user_doc.get("familyId")
+
+        if not fam_id:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Family not found")
+
+
+        fam_doc_ref = store.collection("family").document(fam_id)
+
+        fam_doc = fam_doc_ref.get()
+
+        fam = fam_doc.to_dict()
+
+        members = fam["members"]
+        #is owner and only member
+        if uid == fam["ownerId"] and members == [uid]:
+            store.collection("family").document(fam_id).delete()
+
+                    #https://firebase.google.com/docs/firestore/manage-data/delete-data#fields
+            user_doc_ref.update({
+                "familyId": firestore.DELETE_FIELD
+            })
+
+            return {"success": "Family removed"} 
+
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Not the family owner or family has multiple members")
 
 
 
