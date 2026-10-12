@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Body, Depends
 
 from app.models.Recipe.Recipe import Recipe
+from app.models.Recipe.GenerateRecipeRequest import GenerateRecipeRequest
 from app.actions.authorization_actions import authorization_actions
 from app.actions.recipe_actions import recipe_actions
 
@@ -18,9 +19,9 @@ def seed_recipes(
 def add_recipe(recipe: Recipe, user = Depends(authorization_actions.verify_user_token)):
     return recipe_actions.add_recipe(user["uid"], recipe)
 
-@router.post("/generateRecipe", description="Generate a recipe from users personal product list and adds to user collection", tags=['Recipes'])
-def generate_recipe_from_products(user = Depends(authorization_actions.verify_user_token)):
-    return recipe_actions.generate_recipe_from_products(user["uid"])
+@router.post("/generateRecipe", description="Generate a recipe from the users selected products and adds to user collection", tags=['Recipes'])
+def generate_recipe_from_products(request: GenerateRecipeRequest, user = Depends(authorization_actions.verify_user_token)):
+    return recipe_actions.generate_recipe_from_products(user["uid"], request.productIds)
 
 @router.get("/getAllRecipes", description="Return a list of all recipe items from the user", tags=['Recipes'])
 def get_all_recipes(user = Depends(authorization_actions.verify_user_token)):

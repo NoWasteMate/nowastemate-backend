@@ -29,7 +29,7 @@ def generate_recipe(products: list[dict[str, Any]]):
 
     contents = f'''
        Use the following products to create a creative recipe: {product_details}.
-       Make sure this single recipe is distinct, always use at least 1 product
+       Make sure this single recipe is distinct, and use as many of these products as make sense together
 
         Return ONLY valid JSON representing the recipe.
 
