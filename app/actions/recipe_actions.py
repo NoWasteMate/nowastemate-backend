@@ -35,7 +35,7 @@ class RecipeActions:
     def add_recipe(self, uid: str, recipe: Recipe):
         return self.save_recipe_for_user(recipe=recipe, uid=uid)
 
-    def generate_recipe_from_products(self, uid: str):
+    def generate_recipe_from_products(self, uid: str, product_ids: list[str]):
         products_ref = (
             store.collection("users")
             .document(uid)
@@ -52,6 +52,10 @@ class RecipeActions:
 
             # only use active products
             if data.get("outcome", ProductOutcome.active.value) != ProductOutcome.active.value:
+                continue
+
+            # only use the products the user picked
+            if document.id not in product_ids:
                 continue
 
             products.append({"id": document.id, **data})
