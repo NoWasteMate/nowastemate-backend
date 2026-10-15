@@ -114,7 +114,7 @@ class ProductActions:
         if not family.exists:
             return None
 
-        members = family.to_dict.get("members", [])
+        members = family.to_dict().get("members", [])
 
         family_uids = [uid]
         for member in members:
@@ -141,7 +141,7 @@ class ProductActions:
                 .collection("products")
             )
             
-            for document in store.collection("users").document(member).collection("products").stream():
+            for document in products_ref.stream():
                 data = document.to_dict()
 
                 if data.get("outcome", ProductOutcome.active.value) != ProductOutcome.active.value:
@@ -151,8 +151,14 @@ class ProductActions:
 
         return products
 
+    # reference to a product in the caller's or a family member's collection
     def find_product_ref(self, uid: str, product_id: str):
-        return
+        for member in self.get_family_uids(uid) or [uid]:
+            product_ref = store.collection("users").document(member).collection("products").document(product_id)
+
+            if product_ref.get().exists:
+                return product_ref
+        raise HTTPException(status_code=404, detail="Product Not Found")
 
     # making a user delete a product based on its id
     # reference: https://firebase.google.com/docs/firestore/manage-data/delete-data#python_2
@@ -174,12 +180,14 @@ class ProductActions:
     # making a user update a product based on its id
     # reference: https://firebase.google.com/docs/firestore/manage-data/add-data#update-data
     def update_product(self, uid: str, product_id: str, product: ProductUpdate):
-        products_ref = (
-            store.collection("users")
-            .document(uid)
-            .collection("products")
-            .document(product_id)
-        )
+        # products_ref = (
+        #     store.collection("users")
+        #     .document(uid)
+        #     .collection("products")
+        #     .document(product_id)
+        # )
+
+        products_ref = self.find_product_ref(uid, product_id)
 
         update_data = product.model_dump(exclude_unset=True)
 
@@ -208,12 +216,14 @@ class ProductActions:
         if outcome == ProductOutcome.consumed and waste_reason is not None:
             raise HTTPException(status_code=422, detail="Waste reason is only allowed when marking wasted")
 
-        product_ref = (
-            store.collection("users")
-            .document(uid)
-            .collection("products")
-            .document(product_id)
-        )
+        # product_ref = (
+        #     store.collection("users")
+        #     .document(uid)
+        #     .collection("products")
+        #     .document(product_id)
+        # )
+
+        product_ref = self.find_product_ref(uid, product_id)
 
         product = product_ref.get()
 
@@ -302,28 +312,34 @@ class ProductActions:
     def get_waste_diagnostic(self, uid: str, diagnostic_product: str):
             
             #getting specific product we are evaluating on
-            product_ref = (
-                store.collection("users")
-                .document(uid)
-                .collection("products")
-                .document(diagnostic_product)
-            )
-            product_document = product_ref.get()
+            # product_ref = (
+            #     store.collection("users")
+            #     .document(uid)
+            #     .collection("products")
+            #     .document(diagnostic_product)
+            # )
+            product_ref = self.find_product_ref(uid, diagnostic_product)
+            
+            # product_document = product_ref.get()
 
-            if product_document.exists == False:
-                raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND, 
-                    detail="Product does not exist")
+            # if product_document.exists == False:
+            #     raise HTTPException(
+            #         status_code=status.HTTP_404_NOT_FOUND, 
+            #         detail="Product does not exist")
 
-            product = product_document.to_dict()
+            # product = product_ref.get().to_dict()
+
+            product = product_ref.get().to_dict()
 
 
             #getting product in categorie to calculate the average
-            products_ref = (
-            store.collection("users")
-            .document(uid)
-            .collection("products")
-            )
+            # products_ref = (
+            # store.collection("users")
+            # .document(uid)
+            # .collection("products")
+            # )
+            # .parent parmeter is the owner's products collection, so averages use the owner's history
+            products_ref = product_ref.parent
 
             #https://firebase.google.com/docs/firestore/query-data/get-data
             #https://firebase.google.com/docs/firestore/query-data/get-data#get_all_documents_in_a_collection
