@@ -71,7 +71,7 @@ class ProductActions:
         product.category = self.pick_category(product.productType, product.categoryTags)
 
         doc_ref.set({
-            **product.model_dump(exclude={"categoryTags"}),
+            **product.model_dump(exclude={"categoryTags", "ownerId", "ownerName"}),
             "createdAt": firestore.SERVER_TIMESTAMP,
             "createdBy": uid
         })
@@ -101,6 +101,58 @@ class ProductActions:
             products.append({"id": document.id, **data})
 
         return products
+
+    # getting the family user ids
+    def get_family_uids(self, uid: str) -> Optional[list[str]]:
+        user = store.collection("users").document(uid).get().to_dict() or {}
+        family_id = user.get("familyId")
+
+        if family_id is None:
+            return None
+
+        family = store.collection("family").document(family_id).get()
+        if not family.exists:
+            return None
+
+        members = family.to_dict.get("members", [])
+
+        family_uids = [uid]
+        for member in members:
+            if member not in family_uids:
+                family_uids.append(member)
+        return family_uids
+
+    def get_family_products(self, uid: str):
+        members = self.get_family_uids(uid)
+
+        if members is None:
+            raise HTTPException(status_code=404, detail="User does not have a family")
+
+        # collects every member's products
+        products = [] 
+
+        for member in members:
+            owner = store.collection("users").document(member).get().to_dict() or {}
+            owner_name = owner.get("firstName") or owner.get("email")
+
+            products_ref = (
+                store.collection("users")
+                .document(member)
+                .collection("products")
+            )
+            
+            for document in store.collection("users").document(member).collection("products").stream():
+                data = document.to_dict()
+
+                if data.get("outcome", ProductOutcome.active.value) != ProductOutcome.active.value:
+                    continue
+
+                products.append({"id": document.id, **data, "ownerId": member, "ownerName": owner_name})
+
+        return products
+
+    def find_product_ref(self, uid: str, product_id: str):
+        return
 
     # making a user delete a product based on its id
     # reference: https://firebase.google.com/docs/firestore/manage-data/delete-data#python_2
