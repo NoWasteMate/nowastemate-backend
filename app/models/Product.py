@@ -51,6 +51,8 @@ class Product(BaseModel):
     outcome: ProductOutcome = ProductOutcome.active
     outcomeAt: Optional[datetime] = None
     wasteReason: Optional[WasteReason] = None
+    ownerId: Optional[str] = None
+    ownerName: Optional[str] = None
 
 #subject to change
 class ProductUpdate(BaseModel):
