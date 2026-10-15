@@ -40,7 +40,7 @@ class FamilyActions:
 
         user_doc = user_doc.to_dict()
 
-        fam_id = user_doc["familyId"]
+        fam_id = user_doc.get("familyId")
 
         if fam_id is not None:
 
@@ -151,7 +151,10 @@ class FamilyActions:
 
         user_doc = user_check.to_dict()
 
-        fam_id = user_doc["familyId"]
+        fam_id = user_doc.get("familyId")
+
+        if fam_id is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User does not have a family")
 
         fam_doc_ref = store.collection("family").document(fam_id)
 
@@ -174,7 +177,8 @@ class FamilyActions:
                 arr.append(
                     {
                         "member": i,
-                        "email": email
+                        "email": email,
+                        "firstName" : json.get("firstName")
                     }
                 )
 
