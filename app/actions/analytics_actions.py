@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 
-from app.firebase import store
+from app.firebase import store, firestore
 from app.models.Analytics import TrendPeriod, WasteTrend, WasteTrendInformation, WasteRating, WasteScore, WasteScoreSummary
 from app.models.Product import ProductOutcome, WasteReason
 from app.actions.product_actions import product_actions
@@ -23,6 +23,8 @@ AVOIDABLE_POINTS = 40
 BAYESIAN_WEIGHT = 10
 
 MIN_MARKED = 5
+MIN_ELIGIBLE = 5
+SNAPSHOT_MAX_AGE = timedelta(days=1)
 DEFAULT_WASTE_RATE = 0.15
 
 AVOIDABLE_REASONS = [
@@ -122,9 +124,11 @@ class AnalyticsActions:
         return consumed, wasted, avoidable
 
     def get_waste_score(self, uid: str):
+        snapshot = self.get_global_snapshot()
+
         consumed, wasted, avoidable = self.count_marked_products(uid)
         marked = consumed + wasted
-        user_score = self.get_score_from_counts(marked, wasted, avoidable, DEFAULT_WASTE_RATE)
+        user_score = self.get_score_from_counts(marked, wasted, avoidable, snapshot["userWasteRate"])
 
         family_score = None
         family_uids = product_actions.get_family_uids(uid)
@@ -142,9 +146,70 @@ class AnalyticsActions:
                 family_avoidable += member_avoidable
 
             family_marked = family_consumed + family_wasted
-            family_score = self.get_score_from_counts(family_marked, family_wasted, family_avoidable, DEFAULT_WASTE_RATE)
+            family_score = self.get_score_from_counts(family_marked, family_wasted, family_avoidable, snapshot["familyWasteRate"])
 
         return WasteScoreSummary(user=user_score, family=family_score)
+
+    # rebuilt here until the nightly job exists
+    def get_global_snapshot(self):
+        document = store.collection("analytics").document("global").get()
+        if document.exists:
+            snapshot = document.to_dict()
+            if datetime.now(timezone.utc) - snapshot["updatedAt"] < SNAPSHOT_MAX_AGE:
+                return snapshot
+        return self.build_global_snapshot()
+
+    def build_global_snapshot(self):
+        user_counts = {}
+        user_rates = []
+
+        for user in store.collection("users").stream():
+            consumed, wasted, avoidable = self.count_marked_products(user.id)
+            marked = consumed + wasted
+            user_counts[user.id] = (marked, wasted)
+
+            # pulled toward the default since the real average isn't known yet
+            if marked >= MIN_MARKED:
+                user_rates.append(self.adjusted_waste_rate(marked, wasted, DEFAULT_WASTE_RATE))
+
+        family_rates = []
+
+        for family in store.collection("family").stream():
+            members = family.to_dict().get("members", [])
+            if len(members) < 2:
+                continue
+
+            family_marked = 0
+            family_wasted = 0
+
+            # reuses the user counts so products aren't read twice
+            for member in members:
+                member_marked, member_wasted = user_counts.get(member, (0, 0))
+                family_marked += member_marked
+                family_wasted += member_wasted
+
+            if family_marked >= MIN_MARKED:
+                family_rates.append(self.adjusted_waste_rate(family_marked, family_wasted, DEFAULT_WASTE_RATE))
+
+        snapshot = {
+            "scope": "global",
+            "userWasteRate": self.average_waste_rate(user_rates),
+            "familyWasteRate": self.average_waste_rate(family_rates),
+            "eligibleUsers": len(user_rates),
+            "eligibleFamilies": len(family_rates),
+            "updatedAt": firestore.SERVER_TIMESTAMP
+        }
+        store.collection("analytics").document("global").set(snapshot)
+        return snapshot
+
+    def average_waste_rate(self, rates: list[float]):
+        if len(rates) < MIN_ELIGIBLE:
+            return DEFAULT_WASTE_RATE
+
+        average = sum(rates) / len(rates)
+        if average == 0:
+            return DEFAULT_WASTE_RATE
+        return average
 
     def get_score_from_counts(self, marked: int, wasted: int, avoidable: int, average_rate: float):
         if marked < MIN_MARKED:
