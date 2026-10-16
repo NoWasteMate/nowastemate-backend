@@ -4,6 +4,7 @@ from zoneinfo import ZoneInfo
 from app.firebase import store
 from app.models.Analytics import TrendPeriod, WasteTrend, WasteTrendInformation, WasteRating, WasteScore, WasteScoreSummary
 from app.models.Product import ProductOutcome, WasteReason
+from app.actions.product_actions import product_actions
 
 # references
 # https://docs.python.org/3/library/zoneinfo.html
@@ -123,13 +124,32 @@ class AnalyticsActions:
     def get_waste_score(self, uid: str):
         consumed, wasted, avoidable = self.count_marked_products(uid)
         marked = consumed + wasted
+        user_score = self.get_score_from_counts(marked, wasted, avoidable, DEFAULT_WASTE_RATE)
 
+        family_score = None
+        family_uids = product_actions.get_family_uids(uid)
+
+        # a family score needs 2 or more members
+        if family_uids and len(family_uids) > 1:
+            family_consumed = 0
+            family_wasted = 0
+            family_avoidable = 0
+
+            for member in family_uids:
+                member_consumed, member_wasted, member_avoidable = self.count_marked_products(member)
+                family_consumed += member_consumed
+                family_wasted += member_wasted
+                family_avoidable += member_avoidable
+
+            family_marked = family_consumed + family_wasted
+            family_score = self.get_score_from_counts(family_marked, family_wasted, family_avoidable, DEFAULT_WASTE_RATE)
+
+        return WasteScoreSummary(user=user_score, family=family_score)
+
+    def get_score_from_counts(self, marked: int, wasted: int, avoidable: int, average_rate: float):
         if marked < MIN_MARKED:
-            user_score = WasteScore(productsNeeded=MIN_MARKED - marked)
-        else:
-            user_score = self.calculate_waste_score(marked, wasted, avoidable, DEFAULT_WASTE_RATE)
-
-        return WasteScoreSummary(user=user_score)
+            return WasteScore(productsNeeded=MIN_MARKED - marked)
+        return self.calculate_waste_score(marked, wasted, avoidable, average_rate)
 
     # average_rate must be above 0
     def calculate_waste_score(self, marked: int, wasted: int, avoidable: int, average_rate: float):
