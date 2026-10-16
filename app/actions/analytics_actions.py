@@ -2,7 +2,7 @@ from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 
 from app.firebase import store
-from app.models.Analytics import TrendPeriod, WasteTrend, WasteTrendInformation
+from app.models.Analytics import TrendPeriod, WasteTrend, WasteTrendInformation, WasteRating, WasteScore
 from app.models.Product import ProductOutcome, WasteReason
 
 # references
@@ -14,6 +14,12 @@ from app.models.Product import ProductOutcome, WasteReason
 
 # Group by Toronto time so Sunday-evening / month-end items land in the right bar
 ZONE = ZoneInfo("America/Toronto")
+
+WASTE_RATE_POINTS = 60
+AVOIDABLE_POINTS = 40
+
+# Our chosen weight: 10 products at the average rate
+BAYESIAN_WEIGHT = 10
 
 class AnalyticsActions:
 
@@ -73,5 +79,42 @@ class AnalyticsActions:
                 bucket.consumedCount += 1
 
         return WasteTrend(period=period, buckets=list(buckets.values()))
+
+    # average_rate must be above 0
+    def calculate_waste_score(self, marked: int, wasted: int, avoidable: int, average_rate: float):
+        waste_rate = self.adjusted_waste_rate(marked, wasted, average_rate)
+
+        waste_rate_points = WASTE_RATE_POINTS * (1 - waste_rate / (2 * average_rate))
+        waste_rate_points = max(0, min(waste_rate_points, WASTE_RATE_POINTS))
+
+        avoidable_points = AVOIDABLE_POINTS * (1 - avoidable / marked)
+
+        # rounded once so the score matches the exact parts
+        score = round(waste_rate_points + avoidable_points)
+
+        return WasteScore(
+            score=score,
+            rating=self.get_waste_rating(score),
+            wasteRatePoints=round(waste_rate_points),
+            avoidablePoints=round(avoidable_points)
+        )
+
+    # Adapts the Bayesian average documented for predictive waste risk to the Waste Score
+    # https://nowastemate.atlassian.net/wiki/spaces/NWM/pages/115376129
+    # https://www.algolia.com/doc/guides/managing-results/must-do/custom-ranking/how-to/bayesian-average
+    def adjusted_waste_rate(self, marked: int, wasted: int, average_rate: float):
+        return (BAYESIAN_WEIGHT * average_rate + wasted) / (BAYESIAN_WEIGHT + marked)
+
+    def get_waste_rating(self, score: int):
+        # Thresholds follow Apple Watch Sleep Score bands
+        if score <= 40:
+            return WasteRating.needsWork
+        if score <= 60:
+            return WasteRating.fair
+        if score <= 80:
+            return WasteRating.good
+        if score <= 95:
+            return WasteRating.great
+        return WasteRating.excellent
 
 analytics_actions = AnalyticsActions()

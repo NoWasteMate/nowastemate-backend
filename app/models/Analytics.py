@@ -17,3 +17,16 @@ class WasteTrendInformation(BaseModel):
 class WasteTrend(BaseModel):
     period: TrendPeriod
     buckets: list[WasteTrendInformation]
+
+class WasteRating(str, Enum):
+    needsWork = "needsWork"
+    fair = "fair"
+    good = "good"
+    great = "great"
+    excellent = "excellent"
+
+class WasteScore(BaseModel):
+    score: int
+    rating: WasteRating
+    wasteRatePoints: int
+    avoidablePoints: int
