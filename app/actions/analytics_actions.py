@@ -26,6 +26,8 @@ MIN_MARKED = 5
 MIN_ELIGIBLE = 5
 SNAPSHOT_MAX_AGE = timedelta(days=1)
 DEFAULT_WASTE_RATE = 0.15
+# Based on the share of household food waste that could have been eaten
+DEFAULT_AVOIDABLE_SHARE = 0.63
 
 AVOIDABLE_REASONS = [
     WasteReason.expired.value,
@@ -129,6 +131,7 @@ class AnalyticsActions:
         consumed, wasted, avoidable = self.count_marked_products(uid)
         marked = consumed + wasted
         user_score = self.get_score_from_counts(marked, wasted, avoidable, snapshot["userWasteRate"])
+        user_score.averageScore = snapshot["userAverageScore"]
 
         family_score = None
         family_uids = product_actions.get_family_uids(uid)
@@ -147,6 +150,7 @@ class AnalyticsActions:
 
             family_marked = family_consumed + family_wasted
             family_score = self.get_score_from_counts(family_marked, family_wasted, family_avoidable, snapshot["familyWasteRate"])
+            family_score.averageScore = snapshot["familyAverageScore"]
 
         return WasteScoreSummary(user=user_score, family=family_score)
 
@@ -161,18 +165,17 @@ class AnalyticsActions:
 
     def build_global_snapshot(self):
         user_counts = {}
-        user_rates = []
+        eligible_users = []
 
         for user in store.collection("users").stream():
             consumed, wasted, avoidable = self.count_marked_products(user.id)
             marked = consumed + wasted
-            user_counts[user.id] = (marked, wasted)
+            user_counts[user.id] = (marked, wasted, avoidable)
 
-            # pulled toward the default since the real average isn't known yet
             if marked >= MIN_MARKED:
-                user_rates.append(self.adjusted_waste_rate(marked, wasted, DEFAULT_WASTE_RATE))
+                eligible_users.append((marked, wasted, avoidable))
 
-        family_rates = []
+        eligible_families = []
 
         for family in store.collection("family").stream():
             members = family.to_dict().get("members", [])
@@ -181,35 +184,62 @@ class AnalyticsActions:
 
             family_marked = 0
             family_wasted = 0
+            family_avoidable = 0
 
             # reuses the user counts so products aren't read twice
             for member in members:
-                member_marked, member_wasted = user_counts.get(member, (0, 0))
+                member_marked, member_wasted, member_avoidable = user_counts.get(member, (0, 0, 0))
                 family_marked += member_marked
                 family_wasted += member_wasted
+                family_avoidable += member_avoidable
 
             if family_marked >= MIN_MARKED:
-                family_rates.append(self.adjusted_waste_rate(family_marked, family_wasted, DEFAULT_WASTE_RATE))
+                eligible_families.append((family_marked, family_wasted, family_avoidable))
+
+        user_rate = self.average_waste_rate(eligible_users)
+        family_rate = self.average_waste_rate(eligible_families)
 
         snapshot = {
             "scope": "global",
-            "userWasteRate": self.average_waste_rate(user_rates),
-            "familyWasteRate": self.average_waste_rate(family_rates),
-            "eligibleUsers": len(user_rates),
-            "eligibleFamilies": len(family_rates),
+            "userWasteRate": user_rate,
+            "familyWasteRate": family_rate,
+            "userAverageScore": self.average_waste_score(eligible_users, user_rate),
+            "familyAverageScore": self.average_waste_score(eligible_families, family_rate),
+            "eligibleUsers": len(eligible_users),
+            "eligibleFamilies": len(eligible_families),
             "updatedAt": firestore.SERVER_TIMESTAMP
         }
         store.collection("analytics").document("global").set(snapshot)
         return snapshot
 
-    def average_waste_rate(self, rates: list[float]):
-        if len(rates) < MIN_ELIGIBLE:
+    def average_waste_rate(self, eligible: list[tuple]):
+        if len(eligible) < MIN_ELIGIBLE:
             return DEFAULT_WASTE_RATE
+
+        rates = []
+        for marked, wasted, avoidable in eligible:
+            # pulled toward the default since the real average isn't known yet
+            rates.append(self.adjusted_waste_rate(marked, wasted, DEFAULT_WASTE_RATE))
 
         average = sum(rates) / len(rates)
         if average == 0:
             return DEFAULT_WASTE_RATE
         return average
+
+    def average_waste_score(self, eligible: list[tuple], average_rate: float):
+        if len(eligible) < MIN_ELIGIBLE:
+            return self.default_average_score()
+
+        scores = []
+        for marked, wasted, avoidable in eligible:
+            scores.append(self.calculate_waste_score(marked, wasted, avoidable, average_rate).score)
+
+        return round(sum(scores) / len(scores))
+
+    # someone wasting exactly the default rate gets half the waste-rate points
+    def default_average_score(self):
+        avoidable_share = DEFAULT_WASTE_RATE * DEFAULT_AVOIDABLE_SHARE
+        return round(WASTE_RATE_POINTS / 2 + AVOIDABLE_POINTS * (1 - avoidable_share))
 
     def get_score_from_counts(self, marked: int, wasted: int, avoidable: int, average_rate: float):
         if marked < MIN_MARKED:

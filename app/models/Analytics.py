@@ -34,6 +34,7 @@ class WasteScore(BaseModel):
     avoidablePoints: Optional[int] = None
     # not shown in the app yet, kept for future analytics
     wasteRate: Optional[float] = None
+    averageScore: Optional[int] = None
     productsNeeded: int = 0
 
 class WasteScoreSummary(BaseModel):
