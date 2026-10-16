@@ -15,3 +15,8 @@ def get_waste_trend(
     user = Depends(authorization_actions.verify_user_token)
 ):
     return analytics_actions.get_waste_trend(user["uid"], period, periods)
+
+#https://realpython.com/python-optional-arguments/
+@router.get("/analytics/category_waste", tags=['Analytics'])
+def categories_wasted(familyId: str = "", user = Depends(authorization_actions.verify_user_token)):
+    return analytics_actions.get_categories_wasted(user["uid"], familyId)

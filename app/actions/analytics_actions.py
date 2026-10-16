@@ -73,5 +73,67 @@ class AnalyticsActions:
                 bucket.consumedCount += 1
 
         return WasteTrend(period=period, buckets=list(buckets.values()))
+    
+    def get_categories_wasted(self, uid: str,familyId: str = ""):
+
+        category_products = []
+
+
+        #user run
+        if familyId == "":
+            products_ref = (
+                store.collection("users")
+                .document(uid)
+                .collection("products")
+                )
+            
+            products_document = products_ref.stream()
+
+
+            for document in products_document:
+                data = document.to_dict()
+
+                if data.get("wasteReason") != "addedByMistake":
+                        category_products.append(data)
+        else:
+            user_doc_ref = store.collection("users").document(uid)
+
+            user_check = user_doc_ref.get()
+            #https://stackoverflow.com/questions/51483234/how-to-know-if-document-exists-in-firestore-python
+            if not user_check.exists:
+                return "error"
+
+            user_doc = user_check.to_dict()
+
+            fam_id = user_doc["familyId"]
+
+            fam_doc_ref = store.collection("family").document(fam_id)
+
+            family = fam_doc_ref.get()
+
+            family = family.to_dict()
+
+            for i in family["members"]:
+                products_ref = (
+                store.collection("users")
+                .document(i)
+                .collection("products")
+                )
+                products_document = products_ref.stream()
+                for document in products_document:
+                    data = document.to_dict()
+
+                    if data.get("wasteReason") != "addedByMistake":
+                            category_products.append(data)
+
+        
+                    
+            
+
+
+        
+
+
+
 
 analytics_actions = AnalyticsActions()
