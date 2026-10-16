@@ -2,7 +2,7 @@ from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 
 from app.firebase import store
-from app.models.Analytics import TrendPeriod, WasteTrend, WasteTrendInformation, WasteRating, WasteScore
+from app.models.Analytics import TrendPeriod, WasteTrend, WasteTrendInformation, WasteRating, WasteScore, WasteScoreSummary
 from app.models.Product import ProductOutcome, WasteReason
 
 # references
@@ -20,6 +20,16 @@ AVOIDABLE_POINTS = 40
 
 # Our chosen weight: 10 products at the average rate
 BAYESIAN_WEIGHT = 10
+
+MIN_MARKED = 5
+DEFAULT_WASTE_RATE = 0.15
+
+AVOIDABLE_REASONS = [
+    WasteReason.expired.value,
+    WasteReason.forgot.value,
+    WasteReason.boughtTooMuch.value,
+    WasteReason.storedWrong.value
+]
 
 class AnalyticsActions:
 
@@ -80,6 +90,47 @@ class AnalyticsActions:
 
         return WasteTrend(period=period, buckets=list(buckets.values()))
 
+    def count_marked_products(self, uid: str):
+        consumed = 0
+        wasted = 0
+        avoidable = 0
+
+        products_ref = (
+            store.collection("users")
+            .document(uid)
+            .collection("products")
+        )
+
+        for document in products_ref.stream():
+            data = document.to_dict()
+            outcome = data.get("outcome", ProductOutcome.active.value)
+            reason = data.get("wasteReason")
+
+            if outcome == ProductOutcome.active.value:
+                continue
+            if reason == WasteReason.addedByMistake.value:
+                continue
+
+            if outcome == ProductOutcome.wasted.value:
+                wasted += 1
+                if reason in AVOIDABLE_REASONS:
+                    avoidable += 1
+            else:
+                consumed += 1
+
+        return consumed, wasted, avoidable
+
+    def get_waste_score(self, uid: str):
+        consumed, wasted, avoidable = self.count_marked_products(uid)
+        marked = consumed + wasted
+
+        if marked < MIN_MARKED:
+            user_score = WasteScore(productsNeeded=MIN_MARKED - marked)
+        else:
+            user_score = self.calculate_waste_score(marked, wasted, avoidable, DEFAULT_WASTE_RATE)
+
+        return WasteScoreSummary(user=user_score)
+
     # average_rate must be above 0
     def calculate_waste_score(self, marked: int, wasted: int, avoidable: int, average_rate: float):
         waste_rate = self.adjusted_waste_rate(marked, wasted, average_rate)
@@ -96,7 +147,8 @@ class AnalyticsActions:
             score=score,
             rating=self.get_waste_rating(score),
             wasteRatePoints=round(waste_rate_points),
-            avoidablePoints=round(avoidable_points)
+            avoidablePoints=round(avoidable_points),
+            wasteRate=wasted / marked
         )
 
     # Adapts the Bayesian average documented for predictive waste risk to the Waste Score

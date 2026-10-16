@@ -1,4 +1,5 @@
 from pydantic import BaseModel, Field
+from typing import Optional
 from datetime import datetime
 from enum import Enum
 
@@ -25,8 +26,17 @@ class WasteRating(str, Enum):
     great = "great"
     excellent = "excellent"
 
+# score fields stay None until productsNeeded reaches 0
 class WasteScore(BaseModel):
-    score: int
-    rating: WasteRating
-    wasteRatePoints: int
-    avoidablePoints: int
+    score: Optional[int] = None
+    rating: Optional[WasteRating] = None
+    wasteRatePoints: Optional[int] = None
+    avoidablePoints: Optional[int] = None
+    # not shown in the app yet, kept for future analytics
+    wasteRate: Optional[float] = None
+    productsNeeded: int = 0
+
+class WasteScoreSummary(BaseModel):
+    user: WasteScore
+    family: Optional[WasteScore] = None
+

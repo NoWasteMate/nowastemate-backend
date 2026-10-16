@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, Query
 
-from app.models.Analytics import TrendPeriod, WasteTrend
+from app.models.Analytics import TrendPeriod, WasteTrend, WasteScoreSummary
 from app.actions.authorization_actions import authorization_actions
 from app.actions.analytics_actions import analytics_actions
 
@@ -15,3 +15,7 @@ def get_waste_trend(
     user = Depends(authorization_actions.verify_user_token)
 ):
     return analytics_actions.get_waste_trend(user["uid"], period, periods)
+
+@router.get("/analytics/wasteScore", tags=['Analytics'], response_model=WasteScoreSummary)
+def get_waste_score(user = Depends(authorization_actions.verify_user_token)):
+    return analytics_actions.get_waste_score(user["uid"])
