@@ -87,7 +87,7 @@ class AnalyticsActions:
     def get_product_usage_overview(self, uid: str, days: Optional[int]) -> ProductUsage:
 
         # the cutoff time for when products finished at or after since are counted
-        since = datetime.now(timezone) - timedelta(days=days) if days is not None else None
+        since = datetime.now(timezone.utc) - timedelta(days=days) if days is not None else None
 
         usage = ProductUsage(days=days)
 
@@ -125,7 +125,7 @@ class AnalyticsActions:
 
                 if reason: 
                     usage.byReason[WasteReason(reason)] = usage.byReason.get(WasteReason(reason), 0) + 1
-                    
+
         return usage
 
         
