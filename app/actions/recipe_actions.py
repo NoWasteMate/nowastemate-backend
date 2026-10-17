@@ -4,7 +4,7 @@ from app.models.Recipe.Recipe import Recipe
 from app.models.Product import ProductOutcome
 from app.firebase import firestore, store
 
-from app.gemini import generate_recipe
+from app.openrouter import generate_recipe
 from app.vocabulary.normalize import normalize_name
 
 
@@ -66,13 +66,13 @@ class RecipeActions:
         for product in products:
             products_by_id[product["id"]] = product
 
-        # copies the type from the product Gemini used, otherwise matches the ingredient name
+        # copies the type from the product the model used, otherwise matches the ingredient name
         for ingredient in recipe_json.ingredients:
             product = products_by_id.get(ingredient.productId)
             if product:
                 ingredient.productType = product.get("productType")
             else:
-                # Gemini sometimes makes up ids that aren't the user's products
+                # The model sometimes makes up ids that aren't the user's products
                 ingredient.productId = None
 
             if not ingredient.productType:
