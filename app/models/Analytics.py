@@ -1,7 +1,7 @@
 from pydantic import BaseModel, Field
+from typing import Optional
 from datetime import datetime
 from enum import Enum
-from typing import Optional
 
 from app.models.Product import WasteReason
 
@@ -21,6 +21,27 @@ class WasteTrend(BaseModel):
     period: TrendPeriod
     buckets: list[WasteTrendInformation]
 
+class WasteRating(str, Enum):
+    needsWork = "needsWork"
+    fair = "fair"
+    good = "good"
+    great = "great"
+    excellent = "excellent"
+
+# score fields stay None until productsNeeded reaches 0
+class WasteScore(BaseModel):
+    score: Optional[int] = None
+    rating: Optional[WasteRating] = None
+    wasteRatePoints: Optional[int] = None
+    avoidablePoints: Optional[int] = None
+    # not shown in the app yet, kept for future analytics
+    wasteRate: Optional[float] = None
+    averageScore: Optional[int] = None
+    productsNeeded: int = 0
+
+class WasteScoreSummary(BaseModel):
+    user: WasteScore
+    family: Optional[WasteScore] = None
 
 # Product Usage Model
 # reference: https://docs.pydantic.dev/latest/api/fields/#pydantic.fields.Field

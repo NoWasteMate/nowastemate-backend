@@ -1,5 +1,6 @@
 from app.models.Product import Product, ProductUpdate, ProductCategory, ProductOutcome, WasteReason
 from app.firebase import firestore, store
+from app.actions.analytics_actions import analytics_actions
 
 from typing import Optional
 
@@ -239,6 +240,11 @@ class ProductActions:
             "outcomeAt": firestore.SERVER_TIMESTAMP,
             "wasteReason": waste_reason.value if waste_reason else None
         })
+
+        # the product can belong to another family member, so their counts are refreshed
+        # This find the uid of the user who owns the product
+        owner_uid = product_ref.parent.parent.id
+        analytics_actions.refresh_user_counts(owner_uid)
 
         return {"id": product_id, "outcome": outcome.value, "wasteReason": waste_reason.value if waste_reason else None, "message": "Product Marked"}
 
