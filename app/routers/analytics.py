@@ -18,3 +18,8 @@ def get_waste_trend(period: TrendPeriod = TrendPeriod.week, periods: int = Query
 @router.get("/analytics/productUsage", tags=['Analytics'], response_model=ProductUsage)
 def product_usage_overview(days: Optional[int] = Query(None, ge=1, le=3650), user = Depends(authorization_actions.verify_user_token)):
     return analytics_actions.get_product_usage_overview(user["uid"], days)
+
+#https://realpython.com/python-optional-arguments/
+@router.get("/analytics/category_waste", tags=['Analytics'])
+def categories_wasted(familyId: str = "", user = Depends(authorization_actions.verify_user_token)):
+    return analytics_actions.get_categories_wasted(user["uid"], familyId)
