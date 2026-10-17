@@ -34,8 +34,11 @@ class WasteScore(BaseModel):
     rating: Optional[WasteRating] = None
     wasteRatePoints: Optional[int] = None
     avoidablePoints: Optional[int] = None
-    # not shown in the app yet, kept for future analytics
     wasteRate: Optional[float] = None
+    # shown in the app so the parts read as facts ("7 of 27 wasted items were preventable")
+    wasted: Optional[int] = None
+    avoidableWasted: Optional[int] = None
+    averageWasteRate: Optional[float] = None
     averageScore: Optional[int] = None
     productsNeeded: int = 0
 

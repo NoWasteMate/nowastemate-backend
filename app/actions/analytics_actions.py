@@ -301,6 +301,7 @@ class AnalyticsActions:
         avoidable = user_counts["avoidableWasted"]
         user_score = self.get_score_from_counts(marked, wasted, avoidable, snapshot["userWasteRate"])
         user_score.averageScore = snapshot["userAverageScore"]
+        user_score.averageWasteRate = snapshot["userWasteRate"]
 
         family_score = None
         family_id = user.get("familyId")
@@ -327,6 +328,7 @@ class AnalyticsActions:
 
             family_score = self.get_score_from_counts(family_marked, family_wasted, family_avoidable, snapshot["familyWasteRate"])
             family_score.averageScore = snapshot["familyAverageScore"]
+            family_score.averageWasteRate = snapshot["familyWasteRate"]
 
         return WasteScoreSummary(user=user_score, family=family_score)
 
@@ -438,7 +440,9 @@ class AnalyticsActions:
             rating=self.get_waste_rating(score),
             wasteRatePoints=round(waste_rate_points),
             avoidablePoints=round(avoidable_points),
-            wasteRate=wasted / marked
+            wasteRate=wasted / marked,
+            wasted=wasted,
+            avoidableWasted=avoidable
         )
 
     # Adapts the Bayesian average documented for predictive waste risk to the Waste Score
