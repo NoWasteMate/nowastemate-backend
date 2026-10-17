@@ -20,6 +20,7 @@ def product_usage_overview(days: Optional[int] = Query(None, ge=1, le=3650), use
     return analytics_actions.get_product_usage_overview(user["uid"], days)
 
 #https://realpython.com/python-optional-arguments/
-@router.get("/analytics/category_waste", tags=['Analytics'])
+#https://fastapi.tiangolo.com/tutorial/query-params/
+@router.get("/analytics/categoryWaste", tags=['Analytics'])
 def categories_wasted(familyId: str = "", user = Depends(authorization_actions.verify_user_token)):
     return analytics_actions.get_categories_wasted(user["uid"], familyId)
