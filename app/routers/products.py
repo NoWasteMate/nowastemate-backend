@@ -28,6 +28,11 @@ def add_product(product: Product, user = Depends(authorization_actions.verify_us
 def get_product(user = Depends(authorization_actions.verify_user_token)):
     return product_actions.get_products(user["uid"])
 
+# returns active products from every member of the caller's family
+@router.get("/getFamilyProducts", tags=['Products'])
+def get_family_products(user = Depends(authorization_actions.verify_user_token)):
+    return product_actions.get_family_products(user["uid"])
+
 # making a user delete a product based on its id
 # reference: https://firebase.google.com/docs/firestore/manage-data/delete-data#python_2
 @router.delete("/deleteProduct/{product_id}", tags=['Products'])

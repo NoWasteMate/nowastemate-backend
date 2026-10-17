@@ -40,7 +40,7 @@ class FamilyActions:
 
         user_doc = user_doc.to_dict()
 
-        fam_id = user_doc["familyId"]
+        fam_id = user_doc.get("familyId")
 
         if fam_id is not None:
 
@@ -129,15 +129,16 @@ class FamilyActions:
     def get_family_id(self, uid: str):
         user_doc_ref = store.collection("users").document(uid)
 
-        user_doc = user_doc_ref.get()
+        user_check = user_doc_ref.get()
+        if not user_check.exists:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail = "User does not have a family")
 
-        user_doc = user_doc.to_dict()
+        fam_id = user_check.to_dict().get("familyId")
 
-        if user_doc.get("familyId"):
-            fam_id = user_doc["familyId"]
-            return {fam_id}
-        else:
-            return {"error: Family not found"}
+        if not fam_id:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User does not have a family")
+
+        return [fam_id]
 
     #retrieves all family member email for display
     def get_family_members(self, uid: str):
@@ -151,7 +152,10 @@ class FamilyActions:
 
         user_doc = user_check.to_dict()
 
-        fam_id = user_doc["familyId"]
+        fam_id = user_doc.get("familyId")
+
+        if fam_id is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User does not have a family")
 
         fam_doc_ref = store.collection("family").document(fam_id)
 
@@ -174,7 +178,8 @@ class FamilyActions:
                 arr.append(
                     {
                         "member": i,
-                        "email": email
+                        "email": email,
+                        "firstName" : json.get("firstName")
                     }
                 )
 
