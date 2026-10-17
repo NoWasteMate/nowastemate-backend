@@ -4,7 +4,6 @@ from zoneinfo import ZoneInfo
 from app.firebase import store, firestore
 from app.models.Analytics import TrendPeriod, WasteTrend, WasteTrendInformation, WasteRating, WasteScore, WasteScoreSummary
 from app.models.Product import ProductOutcome, WasteReason
-from app.actions.product_actions import product_actions
 
 # references
 # https://docs.python.org/3/library/zoneinfo.html
@@ -125,30 +124,62 @@ class AnalyticsActions:
 
         return consumed, wasted, avoidable
 
+    # counts are rebuilt from products each time instead of kept as counters
+    def refresh_user_counts(self, uid: str):
+        consumed, wasted, avoidable = self.count_marked_products(uid)
+        marked = consumed + wasted
+
+        counts = {
+            "marked": marked,
+            "wasted": wasted,
+            "avoidableWasted": avoidable,
+            "updatedAt": firestore.SERVER_TIMESTAMP
+        }
+
+        store.collection("users").document(uid).update({"wasteCounts": counts})
+        return counts
+
+    def get_user_counts(self, uid: str, user: dict):
+        counts = user.get("wasteCounts")
+        if counts is None:
+            # users who haven't marked anything since wasteCounts was added
+            counts = self.refresh_user_counts(uid)
+        return counts
+
     def get_waste_score(self, uid: str):
         snapshot = self.get_global_snapshot()
 
-        consumed, wasted, avoidable = self.count_marked_products(uid)
-        marked = consumed + wasted
+        user = store.collection("users").document(uid).get().to_dict() or {}
+        user_counts = self.get_user_counts(uid, user)
+        marked = user_counts["marked"]
+        wasted = user_counts["wasted"]
+        avoidable = user_counts["avoidableWasted"]
         user_score = self.get_score_from_counts(marked, wasted, avoidable, snapshot["userWasteRate"])
         user_score.averageScore = snapshot["userAverageScore"]
 
         family_score = None
-        family_uids = product_actions.get_family_uids(uid)
+        family_id = user.get("familyId")
+
+        members = []
+        if family_id:
+            family = store.collection("family").document(family_id).get()
+            if family.exists:
+                members = family.to_dict().get("members", [])
 
         # a family score needs 2 or more members
-        if family_uids and len(family_uids) > 1:
-            family_consumed = 0
+        # family counts aren't stored, they're added up from the current members like family products
+        if len(members) > 1:
+            family_marked = 0
             family_wasted = 0
             family_avoidable = 0
 
-            for member in family_uids:
-                member_consumed, member_wasted, member_avoidable = self.count_marked_products(member)
-                family_consumed += member_consumed
-                family_wasted += member_wasted
-                family_avoidable += member_avoidable
+            for member in members:
+                member_user = store.collection("users").document(member).get().to_dict() or {}
+                member_counts = self.get_user_counts(member, member_user)
+                family_marked += member_counts["marked"]
+                family_wasted += member_counts["wasted"]
+                family_avoidable += member_counts["avoidableWasted"]
 
-            family_marked = family_consumed + family_wasted
             family_score = self.get_score_from_counts(family_marked, family_wasted, family_avoidable, snapshot["familyWasteRate"])
             family_score.averageScore = snapshot["familyAverageScore"]
 
@@ -200,7 +231,6 @@ class AnalyticsActions:
         family_rate = self.average_waste_rate(eligible_families)
 
         snapshot = {
-            "scope": "global",
             "userWasteRate": user_rate,
             "familyWasteRate": family_rate,
             "userAverageScore": self.average_waste_score(eligible_users, user_rate),
