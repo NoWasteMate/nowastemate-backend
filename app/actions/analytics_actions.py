@@ -179,7 +179,7 @@ class AnalyticsActions:
         #we need to check that the key exists in cases where there
         #we take amount of wasted items, divide by total number of items, then multiply by 100 to represent the percentage
         for key, value in overall.items():
-            result[key] =  round(wasted.get(key, 0) / value * 100)
+            result[key] =  round(wasted.get(key, 0) / value * 100, 1)
 
         return result
 
