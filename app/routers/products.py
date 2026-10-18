@@ -70,7 +70,7 @@ def get_product_types(version: Optional[int] = None, user = Depends(authorizatio
 
 
 @router.get("/get_waste_diagnostic/{product_id}", tags=['Products'])
-def get_product(product_id: str, user = Depends(authorization_actions.verify_user_token)):
+def find_waste_diagnostic(product_id: str, user = Depends(authorization_actions.verify_user_token)):
     return product_actions.get_waste_diagnostic(user["uid"], product_id)
 
 # PRODUCTS
