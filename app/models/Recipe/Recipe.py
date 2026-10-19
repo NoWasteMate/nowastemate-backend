@@ -1,4 +1,5 @@
 from enum import Enum
+from typing import Optional
 from pydantic import BaseModel
 from app.models.Recipe.Ingredient import Ingredient
 
@@ -24,3 +25,4 @@ class Recipe(BaseModel):
     ingredients: list[Ingredient]
     instructions: list[str]
     category: RecipeCategory
+    imageUrl: Optional[str] = None
