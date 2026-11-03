@@ -64,6 +64,7 @@ def generate_recipe(products: list[dict[str, Any]]):
         - Do NOT include markdown.
         - Do NOT include explanation text.
         - Only output a single JSON object.
+        - The ingredients list must include every ingredient used in the instructions, including pantry staples like oil, salt, garlic or soy sauce.
 
         The JSON object must contain:
         - recipeName (string)
@@ -75,7 +76,7 @@ def generate_recipe(products: list[dict[str, Any]]):
         - ingredientsUsed(integer, how many ingredients used from products)
         - ingredients: list of objects with 'name'(str, the plain ingredient name with no brand, size or preparation, e.g. "chicken breast"), 'quantity'(int), 'unit' (str), and ONLY IF using provided product 'productId: string' otherwise 'productId: null'
         - instructions: list of strings
-        - category (string, exactly one of: "soup", "salad", "pasta", "handheld", "breakfast", "dessert", "drink", "platedMain", "general" — pick "general" if nothing else fits)
+        - category (string, exactly one of: "soup", "salad", "pasta", "handheld", "breakfast", "dessert", "drink", "platedMain", "general". Pick "general" if nothing else fits)
     '''
 
     try:
