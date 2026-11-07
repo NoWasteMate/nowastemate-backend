@@ -25,7 +25,9 @@ class UserActions:
                 'createdAt': firestore.SERVER_TIMESTAMP,
                 'firstName': user_info.firstName,
                 'lastName': user_info.lastName,
-                'dietaryRestrictions': user_info.dietaryRestrictions
+                'dietaryRestrictions': user_info.dietaryRestrictions,
+                'notificationDays': user_info.notificationDays,
+                'notificationHour': user_info.notificationHour
             })
             return {'success': f"{user_info.email} user created"}
         
@@ -50,7 +52,10 @@ class UserActions:
                     'email': user_info.email,
                     'firstName': user_info.firstName,
                     'lastName': user_info.lastName,
-                    'dietaryRestrictions': user_info.dietaryRestrictions
+                    'dietaryRestrictions': user_info.dietaryRestrictions,
+                    'notificationDays': user_info.notificationDays,
+                    'notificationHour': user_info.notificationHour
+
                 }
                 )
                 return {'success': f"{uid} updated"} 
