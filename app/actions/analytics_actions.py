@@ -1,9 +1,12 @@
 from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 
+from fastapi import HTTPException
+
 from app.firebase import store, firestore
 from app.models.Analytics import TrendPeriod, WasteTrend, WasteTrendInformation, WasteRating, WasteScore, WasteScoreSummary, ProductUsage
 from app.models.Product import ProductOutcome, WasteReason
+from app.actions.family_actions import family_actions
 
 from typing import Optional
 
@@ -193,47 +196,63 @@ class AnalyticsActions:
 
 
 
-    def get_product_usage_overview(self, uid: str, days: Optional[int]) -> ProductUsage:
+    def get_product_usage_overview(self, uid: str, days: Optional[int], family: bool = False) -> ProductUsage:
 
         # the cutoff time for when products finished at or after since are counted
         since = datetime.now(timezone.utc) - timedelta(days=days) if days is not None else None
 
+        # checking if the user is a part of a family
+        if family:
+            uids = family_actions.get_family_uids(uid)
+            # a family chart needs to have 2 or more members
+            if uids is None or len(uids) < 2:
+                raise HTTPException(status_code=404, detail="User does not have a family")
+        else:
+            uids = [uid]
+
         usage = ProductUsage(days=days)
 
-        products_ref = (
-            store.collection("users") 
-            .document(uid) 
-            .collection("products")
-        )
+        # products_ref = (
+        #     store.collection("users") 
+        #     .document(uid) 
+        #     .collection("products")
+        # )
 
-        for document in products_ref.stream():
-            data = document.to_dict()
-            outcome = data.get("outcome", ProductOutcome.active.value)
-            outcome_at = data.get("outcomeAt")
-            reason = data.get("wasteReason")
+        for member in uids:
+            products_ref = (
+                store.collection("users") 
+                .document(member) 
+                .collection("products")
+            )
 
-            # active products are not finished yet
-            if outcome not in finished_outcomes:
-                continue
+            for document in products_ref.stream():
+                data = document.to_dict()
+                outcome = data.get("outcome", ProductOutcome.active.value)
+                outcome_at = data.get("outcomeAt")
+                reason = data.get("wasteReason")
 
-            # added by mistake was never real food so it doesn't count
-            if reason == WasteReason.addedByMistake.value:
-                continue
+                # active products are not finished yet
+                if outcome not in finished_outcomes:
+                    continue
 
-            # finding a specific timestamp for that time window
-            if since is not None and (outcome_at is None or outcome_at < since):
-                continue
+                # added by mistake was never real food so it doesn't count
+                if reason == WasteReason.addedByMistake.value:
+                    continue
 
-            if outcome == ProductOutcome.consumed.value:
-                usage.consumedCount += 1
-            elif outcome == ProductOutcome.usedInRecipe.value:
-                # only stored outcomes count, generated recipes never do
-                usage.usedInRecipeCount += 1 
-            else:
-                usage.wastedCount += 1
+                # finding a specific timestamp for that time window
+                if since is not None and (outcome_at is None or outcome_at < since):
+                    continue
 
-                if reason: 
-                    usage.byReason[WasteReason(reason)] = usage.byReason.get(WasteReason(reason), 0) + 1
+                if outcome == ProductOutcome.consumed.value:
+                    usage.consumedCount += 1
+                elif outcome == ProductOutcome.usedInRecipe.value:
+                    # only stored outcomes count, generated recipes never do
+                    usage.usedInRecipeCount += 1 
+                else:
+                    usage.wastedCount += 1
+
+                    if reason: 
+                        usage.byReason[WasteReason(reason)] = usage.byReason.get(WasteReason(reason), 0) + 1
 
         return usage
 

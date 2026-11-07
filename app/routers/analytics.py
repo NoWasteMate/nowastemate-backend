@@ -24,8 +24,8 @@ def get_waste_score(user = Depends(authorization_actions.verify_user_token)):
 
 # returns consumed / usedInRecipe / wasted counts for the signed-in user; no days means all time
 @router.get("/analytics/productUsage", tags=['Analytics'], response_model=ProductUsage)
-def product_usage_overview(days: Optional[int] = Query(None, ge=1, le=3650), user = Depends(authorization_actions.verify_user_token)):
-    return analytics_actions.get_product_usage_overview(user["uid"], days)
+def product_usage_overview(days: Optional[int] = Query(None, ge=1, le=3650), family: bool = False, user = Depends(authorization_actions.verify_user_token)):
+    return analytics_actions.get_product_usage_overview(user["uid"], days, family)
 
 #https://realpython.com/python-optional-arguments/
 #https://fastapi.tiangolo.com/tutorial/query-params/
