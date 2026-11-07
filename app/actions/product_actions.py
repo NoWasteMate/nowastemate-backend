@@ -1,6 +1,7 @@
 from app.models.Product import Product, ProductUpdate, ProductCategory, ProductOutcome, WasteReason
 from app.firebase import firestore, store
 from app.actions.analytics_actions import analytics_actions
+from app.actions.family_actions import family_actions
 
 from typing import Optional
 
