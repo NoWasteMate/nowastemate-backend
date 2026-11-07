@@ -1,6 +1,7 @@
 from app.models.Product import Product, ProductUpdate, ProductCategory, ProductOutcome, WasteReason
 from app.firebase import firestore, store
 from app.actions.analytics_actions import analytics_actions
+from app.actions.family_actions import family_actions
 
 from typing import Optional
 
@@ -104,27 +105,27 @@ class ProductActions:
         return products
 
     # getting the family user ids
-    def get_family_uids(self, uid: str) -> Optional[list[str]]:
-        user = store.collection("users").document(uid).get().to_dict() or {}
-        family_id = user.get("familyId")
+    # def get_family_uids(self, uid: str) -> Optional[list[str]]:
+    #     user = store.collection("users").document(uid).get().to_dict() or {}
+    #     family_id = user.get("familyId")
 
-        if family_id is None:
-            return None
+    #     if family_id is None:
+    #         return None
 
-        family = store.collection("family").document(family_id).get()
-        if not family.exists:
-            return None
+    #     family = store.collection("family").document(family_id).get()
+    #     if not family.exists:
+    #         return None
 
-        members = family.to_dict().get("members", [])
+    #     members = family.to_dict().get("members", [])
 
-        family_uids = [uid]
-        for member in members:
-            if member not in family_uids:
-                family_uids.append(member)
-        return family_uids
+    #     family_uids = [uid]
+    #     for member in members:
+    #         if member not in family_uids:
+    #             family_uids.append(member)
+    #     return family_uids
 
     def get_family_products(self, uid: str):
-        members = self.get_family_uids(uid)
+        members = family_actions.get_family_uids(uid)
 
         if members is None:
             raise HTTPException(status_code=404, detail="User does not have a family")
@@ -154,7 +155,7 @@ class ProductActions:
 
     # reference to a product in the caller's or a family member's collection
     def find_product_ref(self, uid: str, product_id: str):
-        for member in self.get_family_uids(uid) or [uid]:
+        for member in family_actions.get_family_uids(uid) or [uid]:
             product_ref = store.collection("users").document(member).collection("products").document(product_id)
 
             if product_ref.get().exists:

@@ -3,6 +3,7 @@ from app.models.FamilyJoinCode import FamilyJoinCode
 from app.models.FamilyMember import FamilyMember
 from app.firebase import firestore, store
 from fastapi import HTTPException, status
+from typing import Optional
 
 
 class FamilyActions:
@@ -139,6 +140,27 @@ class FamilyActions:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User does not have a family")
 
         return [fam_id]
+
+    def get_family_uids(self, uid: str) -> Optional[list[str]]:
+        user = store.collection("users").document(uid).get().to_dict() or {}
+        family_id = user.get("familyId")
+
+        if family_id is None:
+            return None
+
+        family = store.collection("family").document(family_id).get()
+        if not family.exists:
+            return None
+
+        members = family.to_dict().get("members", [])
+
+        family_uids = [uid]
+        for member in members:
+            if member not in family_uids:
+                family_uids.append(member)
+                
+        return family_uids
+        
 
     #retrieves all family member email for display
     def get_family_members(self, uid: str):
