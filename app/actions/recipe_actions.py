@@ -8,6 +8,12 @@ from app.firebase import bucket, firestore, store
 
 from app.openrouter import generate_recipe, generate_recipe_image
 from app.vocabulary.normalize import normalize_name
+from app.vocabulary.product_types import PRODUCT_TYPES
+from app.actions.family_actions import family_actions
+from app.actions.product_actions import product_actions
+
+MAX_MISSING = 2
+MAX_SUGGESTIONS = 3
 
 
 class RecipeActions:
@@ -232,6 +238,89 @@ class RecipeActions:
 
         recipe_ref.delete()
         return {"Success": f"Removed recipe with id {recipe_id}"}
+
+    def get_suggested_recipes(self, uid: str):
+        if family_actions.get_family_uids(uid) is None:
+            products = product_actions.get_products(uid)
+        else:
+            products = product_actions.get_family_products(uid)
+        owned_types = self.get_owned_product_types(products)
+
+        saved_pool_ids = []
+        for saved_recipe in self.get_all_recipes(uid):
+            saved_pool_ids.append(saved_recipe.get("poolId"))
+
+        suggestions = []
+        for document in store.collection("recipePool").stream():
+            if document.id in saved_pool_ids:
+                continue
+
+            data = document.to_dict()
+            missing = 0
+            owned = 0
+            for ingredient in data["ingredients"]:
+                product_type = ingredient.get("productType")
+                if product_type in owned_types:
+                    owned += 1
+                else:
+                    missing += 1
+
+            if missing > MAX_MISSING:
+                continue
+
+            # Pydantic ignores extra fields like poolKey
+            # https://pydantic.dev/docs/validation/latest/concepts/models/#extra-data
+            #
+            suggestion = Recipe.model_validate(data).model_dump()
+            suggestion["id"] = document.id
+            suggestion["poolId"] = document.id
+            # Not on the Recipe model but the app needs it to decode
+            suggestion["createdAt"] = data["createdAt"]
+            suggestion["ingredientsUsed"] = owned
+            suggestion["missingCount"] = missing
+            suggestions.append(suggestion)
+
+        # Ties keep their order from the first sort. Used helper functions to get counts.
+        suggestions.sort(key=self.get_suggestion_owned_count, reverse=True)
+        suggestions.sort(key=self.get_suggestion_missing_count)
+
+        return suggestions[:MAX_SUGGESTIONS]
+
+    def save_suggested_recipe(self, uid: str, pool_id: str):
+        pool_doc = store.collection("recipePool").document(pool_id).get()
+        if not pool_doc.exists:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Unable to find pool recipe Id: {pool_id}"
+            )
+
+        recipe = Recipe.model_validate(pool_doc.to_dict())
+        recipe.poolId = pool_id
+
+        return self.save_recipe_for_user(recipe=recipe, uid=uid)
+
+    def get_suggestion_owned_count(self, suggestion: dict):
+        return suggestion["ingredientsUsed"]
+
+    def get_suggestion_missing_count(self, suggestion: dict):
+        return suggestion["missingCount"]
+
+    def get_owned_product_types(self, products: list[dict]):
+        owned_types = set()
+        to_visit = []
+        for product in products:
+            to_visit.append(product.get("productType"))
+
+        # A type only lists its direct parents so keep adding them until none are left.
+        # chicken-breast adds chicken-meat then chicken, so it counts for a recipe needing just "chicken"
+        while to_visit:
+            product_type = to_visit.pop()
+            if product_type is None or product_type in owned_types:
+                continue
+            owned_types.add(product_type)
+            parent_types = PRODUCT_TYPES.get(product_type, {}).get("parents", [])
+            to_visit.extend(parent_types)
+        return owned_types
 
     # Helper for saving recipe to firestore
     def save_recipe_for_user(self, recipe: Recipe, uid: str):
