@@ -223,8 +223,12 @@ class RecipeActions:
             encoded_name = path_and_query.split("?")[0]
             # https://docs.python.org/3/library/urllib.parse.html#urllib.parse.unquote
             filename = unquote(encoded_name)
-            # https://docs.cloud.google.com/storage/docs/deleting-objects#storage-delete-object-python
-            bucket.blob(filename).delete()
+
+            # Clients can set imageUrl through /addRecipe, so it could point at someone else's file
+            own_image_paths = [f"recipeImages/{recipe_id}.webp", f"recipes/{uid}/{recipe_id}.webp"]
+            if filename in own_image_paths:
+                # https://docs.cloud.google.com/storage/docs/deleting-objects#storage-delete-object-python
+                bucket.blob(filename).delete()
 
         recipe_ref.delete()
         return {"Success": f"Removed recipe with id {recipe_id}"}
