@@ -1,5 +1,5 @@
 from fastapi import HTTPException, status
-from urllib.parse import quote
+from urllib.parse import quote, unquote
 from uuid import uuid4
 
 from app.models.Recipe.Recipe import Recipe
@@ -85,16 +85,71 @@ class RecipeActions:
 
         # The recipe is already saved, so a failed image just leaves imageUrl empty
         try:
-            self.add_recipe_image(uid=uid, recipe_id=saved["id"], recipe=recipe_json)
+            image_url = self.add_recipe_image(uid=uid, recipe_id=saved["id"], recipe=recipe_json)
+            recipe_json.imageUrl = image_url
         except Exception as e:
             print(f"Recipe image failed for {saved['id']}: {e}")
 
+        # A failed pool write only keeps this recipe out of the pool
+        try:
+            pool_id = self.add_recipe_to_pool(recipe=recipe_json)
+            if pool_id:
+                recipe_ref = (
+                    store.collection('users')
+                    .document(uid)
+                    .collection('recipes')
+                    .document(saved["id"])
+                )
+                recipe_ref.update({"poolId": pool_id})
+        except Exception as e:
+            print(f"Recipe pool write failed for {saved['id']}: {e}")
+
         return saved
+
+    def add_recipe_to_pool(self, recipe: Recipe, is_curated: bool = False):
+        # Suggestions match on product types and can't use an ingredient without one
+        product_types = []
+        for ingredient in recipe.ingredients:
+            if not ingredient.productType:
+                return None
+            product_types.append(ingredient.productType)
+
+        # Sorted with no repeats so the same types in any order give the same key
+        sorted_types = sorted(set(product_types))
+        clean_name = recipe.recipeName.strip().lower()
+        types_text = ",".join(sorted_types)
+        pool_key = f"{clean_name}|{types_text}"
+
+        pool_ref = store.collection("recipePool")
+
+        # https://firebase.google.com/docs/firestore/query-data/queries#simple_queries
+        # https://firebase.google.com/docs/firestore/query-data/order-limit-data
+        duplicate_query = pool_ref.where(filter=firestore.FieldFilter("poolKey", "==", pool_key)).limit(1)
+        duplicates = duplicate_query.get()
+        if duplicates:
+            return None
+
+        # ingredientsUsed is kept so pool docs still read back as a Recip
+        pool_recipe = recipe.model_dump(exclude={"poolId"})
+        for ingredient in pool_recipe["ingredients"]:
+            # productId points into the generating user's products so it shouldn't be copied. del as per pydantic docs.
+            del ingredient["productId"]
+
+        doc_ref = pool_ref.document()
+        doc_ref.set({
+            **pool_recipe,
+            "productTypes": sorted_types,
+            "poolKey": pool_key,
+            "isCurated": is_curated,
+            "createdAt": firestore.SERVER_TIMESTAMP
+        })
+        return doc_ref.id
 
     def add_recipe_image(self, uid: str, recipe_id: str, recipe: Recipe):
         image = generate_recipe_image(recipe)
         # https://docs.cloud.google.com/storage/docs/uploading-objects-from-memory#storage-upload-object-from-memory-python
-        filename = f"recipes/{uid}/{recipe_id}.webp"
+        # Not under the uid because the pool copy of the recipe shares this file
+        filename = f"recipeImages/{recipe_id}.webp"
         blob = bucket.blob(filename)
 
         # Store a random download token which follows the Node upload example
@@ -106,7 +161,7 @@ class RecipeActions:
 
         # The article encodes the full filename with "encodeURIComponent"
         # I had to find a python equivalence so I used Python's quote() for this, with safe="" to encode slashes too
-        # The result is recipes/user/id.webp -> recipes%2Fuser%2Fid.webp
+        # The result is recipeImages/id.webp -> recipeImages%2Fid.webp
         # https://www.sentinelstand.com/article/guide-to-firebase-storage-download-urls-tokens
         # https://docs.python.org/3/library/urllib.parse.html#urllib.parse.quote
         encoded_name = quote(filename, safe="")
@@ -119,6 +174,7 @@ class RecipeActions:
             .document(recipe_id)
         )
         recipe_ref.update({"imageUrl": image_url})
+        return image_url
 
     def get_all_recipes(self, uid: str):
         recipes_ref = (
@@ -155,10 +211,20 @@ class RecipeActions:
                 headers={"WWW-Authenticate": "Bearer"}
             )
 
-        # Only generated recipes get to have an image
-        if recipe_doc.to_dict().get("imageUrl"):
+        recipe = recipe_doc.to_dict()
+        image_url = recipe.get("imageUrl")
+        storage_prefix = f"https://firebasestorage.googleapis.com/v0/b/{bucket.name}/o/"
+
+        # Pool recipes share the image, so only delete it when nothing else uses it
+        is_our_file = image_url and image_url.startswith(storage_prefix)
+        if is_our_file and not recipe.get("poolId"):
+            # Older images are under recipes/{uid}/, so read the path from the URL
+            path_and_query = image_url.removeprefix(storage_prefix)
+            encoded_name = path_and_query.split("?")[0]
+            # https://docs.python.org/3/library/urllib.parse.html#urllib.parse.unquote
+            filename = unquote(encoded_name)
             # https://docs.cloud.google.com/storage/docs/deleting-objects#storage-delete-object-python
-            bucket.blob(f"recipes/{uid}/{recipe_id}.webp").delete()
+            bucket.blob(filename).delete()
 
         recipe_ref.delete()
         return {"Success": f"Removed recipe with id {recipe_id}"}

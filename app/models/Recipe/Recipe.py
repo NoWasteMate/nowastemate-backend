@@ -26,3 +26,4 @@ class Recipe(BaseModel):
     instructions: list[str]
     category: RecipeCategory
     imageUrl: Optional[str] = None
+    poolId: Optional[str] = None
