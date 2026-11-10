@@ -30,3 +30,11 @@ def get_all_recipes(user = Depends(authorization_actions.verify_user_token)):
 @router.delete("/deleteRecipe/{recipe_id}", description="Remove recipe from user by ID", tags=['Recipes'])
 def remove_recipe_by_id(recipe_id: str, user = Depends(authorization_actions.verify_user_token)):
     return recipe_actions.remove_recipe_by_id(user["uid"], recipe_id)
+
+@router.get("/suggestedRecipes", description="Return up to 3 pool recipes the user nearly has the products for", tags=['Recipes'])
+def get_suggested_recipes(user = Depends(authorization_actions.verify_user_token)):
+    return recipe_actions.get_suggested_recipes(user["uid"])
+
+@router.post("/saveSuggestedRecipe/{pool_id}", description="Save a copy of a suggested pool recipe to the user", tags=['Recipes'])
+def save_suggested_recipe(pool_id: str, user = Depends(authorization_actions.verify_user_token)):
+    return recipe_actions.save_suggested_recipe(user["uid"], pool_id)
