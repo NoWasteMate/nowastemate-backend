@@ -14,9 +14,10 @@ router = APIRouter()
 def get_waste_trend(
     period: TrendPeriod = TrendPeriod.week,
     periods: int = Query(6, ge=1, le=24),
+    family: bool = False,
     user = Depends(authorization_actions.verify_user_token)
 ):
-    return analytics_actions.get_waste_trend(user["uid"], period, periods)
+    return analytics_actions.get_waste_trend(user["uid"], period, periods, family)
 
 @router.get("/analytics/wasteScore", tags=['Analytics'], response_model=WasteScoreSummary)
 def get_waste_score(user = Depends(authorization_actions.verify_user_token)):
