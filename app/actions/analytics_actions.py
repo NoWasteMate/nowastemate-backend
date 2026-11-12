@@ -69,41 +69,60 @@ class AnalyticsActions:
         month_index = start.year * 12 + (start.month - 1) - n
         return datetime(month_index // 12, month_index % 12 + 1, 1, tzinfo=ZONE)
 
-    def get_waste_trend(self, uid: str, period: TrendPeriod, periods: int) -> WasteTrend:
+    # getting family uids function
+    def get_scope_uids(self, uid: str, family: bool) -> list[str]:
+        if not family:
+            return [uid]
+
+        uids = family_actions.get_family_uids(uid)
+
+        if uids is None or len(uids) < 2:
+            raise HTTPException(status_code=404, detail="User does not have a family")
+        return uids
+
+    def get_waste_trend(self, uid: str, period: TrendPeriod, periods: int, family: bool = False) -> WasteTrend:
+
+        uids = self.get_scope_uids(uid, family)
 
         # every information group in the range, oldest first, so the chart has no gaps
         current_start = self.period_start(datetime.now(timezone.utc), period)
         starts = [self.step_back(current_start, period, n) for n in range(periods - 1, -1, -1)]
         buckets = {start: WasteTrendInformation(periodStart=start) for start in starts}
 
-        products_ref = (
-            store.collection("users")
-            .document(uid)
-            .collection("products")
-        )
+        for member in uids:
+            products_ref = (
+                store.collection("users")
+                .document(member)
+                .collection("products")
+            )
 
-        for document in products_ref.stream():
-            data = document.to_dict()
-            outcome = data.get("outcome", ProductOutcome.active.value)
-            outcome_at = data.get("outcomeAt")
-
-            # active products and legacy products without outcomeAt are skipped
-            if outcome == ProductOutcome.active.value or outcome_at is None:
-                continue
-
-            # older than the range (or in the future) has no bucket
-            bucket = buckets.get(self.period_start(outcome_at, period))
-            if bucket is None:
-                continue
-
-            if outcome == ProductOutcome.wasted.value:
-                bucket.wastedCount += 1
+            for document in products_ref.stream():
+                data = document.to_dict()
+                outcome = data.get("outcome", ProductOutcome.active.value)
+                outcome_at = data.get("outcomeAt")
                 reason = data.get("wasteReason")
-                if reason:
-                    bucket.byReason[WasteReason(reason)] = bucket.byReason.get(WasteReason(reason), 0) + 1
-            else:
-                # consumed and usedInRecipe both count as consumed
-                bucket.consumedCount += 1
+
+                # active products and legacy products without outcomeAt are skipped
+                if outcome == ProductOutcome.active.value or outcome_at is None:
+                    continue
+
+                # added by mistake doesn't count
+                if reason == WasteReason.addedByMistake.value:
+                    continue
+                
+                # older than the range (or in the future) has no bucket
+                bucket = buckets.get(self.period_start(outcome_at, period))
+                if bucket is None:
+                    continue
+
+                if outcome == ProductOutcome.wasted.value:
+                    bucket.wastedCount += 1
+                    #reason = data.get("wasteReason")
+                    if reason:
+                        bucket.byReason[WasteReason(reason)] = bucket.byReason.get(WasteReason(reason), 0) + 1
+                else:
+                    # consumed and usedInRecipe both count as consumed
+                    bucket.consumedCount += 1
         
         return WasteTrend(period=period, buckets=list(buckets.values()))
     
@@ -202,13 +221,7 @@ class AnalyticsActions:
         since = datetime.now(timezone.utc) - timedelta(days=days) if days is not None else None
 
         # checking if the user is a part of a family
-        if family:
-            uids = family_actions.get_family_uids(uid)
-            # a family chart needs to have 2 or more members
-            if uids is None or len(uids) < 2:
-                raise HTTPException(status_code=404, detail="User does not have a family")
-        else:
-            uids = [uid]
+        uids = self.get_scope_uids(uid, family)
 
         usage = ProductUsage(days=days)
 
