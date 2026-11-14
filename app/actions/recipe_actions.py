@@ -2,6 +2,7 @@ from fastapi import HTTPException, status
 from urllib.parse import quote, unquote
 from uuid import uuid4
 
+from app.data.curated_recipes import CURATED_RECIPES
 from app.models.Recipe.Recipe import Recipe
 from app.models.Product import ProductOutcome
 from app.firebase import bucket, firestore, store
@@ -17,6 +18,50 @@ MAX_SUGGESTIONS = 3
 
 
 class RecipeActions:
+
+    def seed_recipe_pool(self):
+        added = []
+        skipped = []
+        failed = []
+
+        for recipe_data in CURATED_RECIPES:
+            try:
+                recipe = Recipe.model_validate(recipe_data)
+                pool_id = self.add_recipe_to_pool(recipe=recipe, is_curated=True)
+
+                # No id back means the recipe is already in the pool
+                if pool_id is None:
+                    skipped.append(recipe.recipeName)
+                    continue
+
+                self.add_pool_recipe_image(pool_id, recipe)
+                added.append(recipe.recipeName)
+            except Exception as e:
+                # The recipe stays in the pool if only its image failed
+                failed.append({"recipeName": recipe_data["recipeName"], "error": str(e)})
+
+        return {
+            "added": added,
+            "skipped": skipped,
+            "failed": failed
+        }
+
+    def recipe_pool_key(self, recipe: Recipe):
+        product_types = []
+        for ingredient in recipe.ingredients:
+            if ingredient.productType:
+                product_types.append(ingredient.productType)
+
+        # Sorted with no repeats so the same types in any order give the same key
+        sorted_types = sorted(set(product_types))
+        clean_name = recipe.recipeName.strip().lower()
+        types_text = ",".join(sorted_types)
+        return f"{clean_name}|{types_text}"
+
+    def add_pool_recipe_image(self, pool_id: str, recipe: Recipe):
+        image_url = self.upload_recipe_image(recipe_id=pool_id, recipe=recipe)
+        store.collection("recipePool").document(pool_id).update({"imageUrl": image_url})
+        return image_url
 
     def seed_recipes(self, uid: str, recipes: list[Recipe]):
         recipes_ref = (
@@ -120,11 +165,8 @@ class RecipeActions:
                 return None
             product_types.append(ingredient.productType)
 
-        # Sorted with no repeats so the same types in any order give the same key
         sorted_types = sorted(set(product_types))
-        clean_name = recipe.recipeName.strip().lower()
-        types_text = ",".join(sorted_types)
-        pool_key = f"{clean_name}|{types_text}"
+        pool_key = self.recipe_pool_key(recipe)
 
         pool_ref = store.collection("recipePool")
 
@@ -152,6 +194,19 @@ class RecipeActions:
         return doc_ref.id
 
     def add_recipe_image(self, uid: str, recipe_id: str, recipe: Recipe):
+        image_url = self.upload_recipe_image(recipe_id=recipe_id, recipe=recipe)
+
+        recipe_ref = (
+            store.collection('users')
+            .document(uid)
+            .collection('recipes')
+            .document(recipe_id)
+        )
+        recipe_ref.update({"imageUrl": image_url})
+        return image_url
+
+    # Shared by user recipes and seeded pool recipes
+    def upload_recipe_image(self, recipe_id: str, recipe: Recipe):
         image = generate_recipe_image(recipe)
         # https://docs.cloud.google.com/storage/docs/uploading-objects-from-memory#storage-upload-object-from-memory-python
         # Not under the uid because the pool copy of the recipe shares this file
@@ -172,14 +227,6 @@ class RecipeActions:
         # https://docs.python.org/3/library/urllib.parse.html#urllib.parse.quote
         encoded_name = quote(filename, safe="")
         image_url = (f"https://firebasestorage.googleapis.com/v0/b/{bucket.name}/o/{encoded_name}?alt=media&token={token}")
-
-        recipe_ref = (
-            store.collection('users')
-            .document(uid)
-            .collection('recipes')
-            .document(recipe_id)
-        )
-        recipe_ref.update({"imageUrl": image_url})
         return image_url
 
     def get_all_recipes(self, uid: str):
