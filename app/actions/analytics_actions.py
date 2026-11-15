@@ -395,6 +395,7 @@ class AnalyticsActions:
                     member_avoidable = member_counts["avoidableWasted"]
                     member_score = self.get_score_from_counts(member_marked, member_wasted, member_avoidable, snapshot["userWasteRate"])
 
+                    member_result["id"] = member
                     member_result["firstName"] = first
                     member_result["lastName"] = last
                     member_result["score"] = member_score.score
