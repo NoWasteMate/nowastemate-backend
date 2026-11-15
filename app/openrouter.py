@@ -26,7 +26,7 @@ GEMINI_FALLBACK_MODEL = "gemini-3.5-flash"
 
 # Recraft API lists WebP as the default image format
 # https://www.recraft.ai/docs/api-reference/models/recraft-v4-1-flash.md
-IMAGE_MODEL = "recraft/recraft-v4.1-flash"
+IMAGE_MODEL = "recraft/recraft-v4.1-flash-v2"
 
 # Recraft Flash has no style option so the look comes from the prompt
 # Opus 5.5 helped structure this prompt in an LLM friendly way similar to the image research Confluence doc prompts used for testing
@@ -136,7 +136,7 @@ def generate_recipe_image(recipe: Recipe):
             "Authorization": f"Bearer {openrouter_api_key}",
             "Content-Type": "application/json"
         },
-        # https://openrouter.ai/recraft/recraft-v4.1-flash?view=api#api
+        # https://openrouter.ai/recraft/recraft-v4.1-flash-v2?view=api#api
         data=json.dumps({
             "model": IMAGE_MODEL,
             "prompt": prompt,
