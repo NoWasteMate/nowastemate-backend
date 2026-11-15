@@ -364,6 +364,52 @@ class AnalyticsActions:
 
         return WasteScoreSummary(user=user_score, family=family_score)
 
+    def get_family_leaderboard(self, uid: str):
+        snapshot = self.get_global_snapshot()
+        user = store.collection("users").document(uid).get().to_dict() or {}
+        family_id = user.get("familyId")
+        members = []
+
+        result = []
+
+        if family_id:
+            family = store.collection("family").document(family_id).get()
+            if family.exists:
+                members = family.to_dict().get("members", [])
+
+                for member in members:
+                    #setup
+                    member_result = {}
+                    member_marked = 0
+                    member_wasted = 0
+                    member_avoidable = 0
+                    member_score = None
+
+                    member_user = store.collection("users").document(member).get().to_dict() or {}
+                    first = member_user["firstName"]
+                    last = member_user["lastName"]
+
+                    member_counts = self.get_user_counts(member, member_user)
+                    member_marked = member_counts["marked"]
+                    member_wasted = member_counts["wasted"]
+                    member_avoidable = member_counts["avoidableWasted"]
+                    member_score = self.get_score_from_counts(member_marked, member_wasted, member_avoidable, snapshot["userWasteRate"])
+
+                    member_result["id"] = member
+                    member_result["firstName"] = first
+                    member_result["lastName"] = last
+                    member_result["score"] = member_score.score
+
+                    result.append(member_result)
+
+                return result
+        else: 
+            return []
+
+
+
+
+
     # rebuilt here until the nightly job exists
     def get_global_snapshot(self):
         document = store.collection("analytics").document("global").get()

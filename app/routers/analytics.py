@@ -33,3 +33,7 @@ def product_usage_overview(days: Optional[int] = Query(None, ge=1, le=3650), fam
 @router.get("/analytics/categoryWaste", tags=['Analytics'])
 def categories_wasted(familyId: str = "", user = Depends(authorization_actions.verify_user_token)):
     return analytics_actions.get_categories_wasted(user["uid"], familyId)
+
+@router.get("/analytics/familyLeaderboard", tags=['Analytics'])
+def categories_wasted(user = Depends(authorization_actions.verify_user_token)):
+    return analytics_actions.get_family_leaderboard(user["uid"])
