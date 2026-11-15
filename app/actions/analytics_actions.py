@@ -397,10 +397,13 @@ class AnalyticsActions:
 
                     member_result["firstName"] = first
                     member_result["lastName"] = last
-                    member_result["score"] = member_score.averageScore
+                    member_result["score"] = member_score.score
 
                     result.append(member_result)
 
+                return result
+        else: 
+            return []
 
 
 
