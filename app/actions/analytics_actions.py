@@ -4,7 +4,7 @@ from zoneinfo import ZoneInfo
 from fastapi import HTTPException
 
 from app.firebase import store, firestore
-from app.models.Analytics import TrendPeriod, WasteTrend, WasteTrendInformation, WasteRating, WasteScore, WasteScoreSummary, ProductUsage
+from app.models.Analytics import TrendPeriod, WasteTrend, WasteTrendInformation, WasteRating, WasteScore, WasteScoreSummary, ProductUsage, WasteRisk
 from app.models.Product import ProductOutcome, WasteReason
 from app.actions.family_actions import family_actions
 
@@ -39,6 +39,10 @@ SNAPSHOT_MAX_AGE = timedelta(days=1)
 DEFAULT_WASTE_RATE = 0.15
 # Based on the share of household food waste that could have been eaten
 DEFAULT_AVOIDABLE_SHARE = 0.63
+
+# Our chosen cutoffs in days left before expiry
+HIGH_RISK_DAYS = 2
+MEDIUM_RISK_DAYS = 5
 
 AVOIDABLE_REASONS = [
     WasteReason.expired.value,
@@ -540,5 +544,24 @@ class AnalyticsActions:
         if score <= 95:
             return WasteRating.great
         return WasteRating.excellent
+
+    # Waste Risk methods section
+    def calculate_product_waste_risk(self, product: dict):
+        date_expiration = product.get("dateExpiration")
+        # no date to compare against yet
+        if date_expiration is None:
+            return WasteRisk.low
+
+        # .days drops the leftover hours, 1 day 23 hours is 1
+        # https://docs.python.org/3/library/datetime.html#timedelta-objects
+        time_until_expiry = date_expiration - datetime.now(timezone.utc)
+        days_until_expiry = time_until_expiry.days
+
+        # expired products have negative days and count as high
+        if days_until_expiry <= HIGH_RISK_DAYS:
+            return WasteRisk.high
+        if days_until_expiry <= MEDIUM_RISK_DAYS:
+            return WasteRisk.medium
+        return WasteRisk.low
 
 analytics_actions = AnalyticsActions()
