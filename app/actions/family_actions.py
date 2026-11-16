@@ -201,7 +201,8 @@ class FamilyActions:
                     {
                         "member": i,
                         "email": email,
-                        "firstName" : json.get("firstName")
+                        "firstName" : json.get("firstName"),
+                        "lastName" : json.get("lastName")
                     }
                 )
 
