@@ -67,3 +67,4 @@ class ProductWasteRisk(BaseModel):
     productType: Optional[str] = None
     dateExpiration: Optional[datetime] = None
     risk: WasteRisk
+    categoryOftenWasted: bool = False

@@ -43,6 +43,8 @@ DEFAULT_AVOIDABLE_SHARE = 0.63
 # Our chosen cutoffs in days left before expiry
 HIGH_RISK_DAYS = 2
 MEDIUM_RISK_DAYS = 5
+# more than half of the category's marked products were wasted, not compared to other categories
+CATEGORY_MOSTLY_WASTED_PERCENT = 50
 
 AVOIDABLE_REASONS = [
     WasteReason.expired.value,
@@ -194,7 +196,10 @@ class AnalyticsActions:
         #looping through all the products, each time it will add one to the overall, and one to wasted if it is wasted
         for i in category_products:
 
-            current_category = i["category"]
+            current_category = i.get("category")
+            # found while reusing this for waste risk: a product without a category crashed here with a KeyError
+            if current_category is None:
+                continue
             #add 1 to the overall no matter what
             overall[current_category] = overall.get(current_category, 0) + 1
             #also add 1 to the wasted amount if product was wasted
@@ -566,6 +571,8 @@ class AnalyticsActions:
         risks = []
 
         for member in uids:
+            category_waste = self.get_categories_wasted(member)
+
             products_ref = (
                 store.collection("users")
                 .document(member)
@@ -582,15 +589,28 @@ class AnalyticsActions:
                     continue
 
                 risk = self.calculate_product_waste_risk(data)
+
+                # same percentages as the category waste chart, so the user can see why
+                category_waste_percent = category_waste.get(data.get("category"), 0)
+                category_often_wasted = category_waste_percent > CATEGORY_MOSTLY_WASTED_PERCENT
+                if category_often_wasted:
+                    risk = self.raise_waste_risk(risk)
+
                 product_risk = {
                     "id": document.id,
                     "name": data.get("name"),
                     "productType": data.get("productType"),
                     "dateExpiration": data.get("dateExpiration"),
-                    "risk": risk
+                    "risk": risk,
+                    "categoryOftenWasted": category_often_wasted
                 }
                 risks.append(product_risk)
 
         return risks
+
+    def raise_waste_risk(self, risk: WasteRisk):
+        if risk == WasteRisk.low:
+            return WasteRisk.medium
+        return WasteRisk.high
 
 analytics_actions = AnalyticsActions()
