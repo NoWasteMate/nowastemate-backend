@@ -24,6 +24,9 @@ strip_words = {
     "organic", "fresh", "free", "run", "range", "grade", "natural", "local",
     "non", "gmo", "fair", "trade", "halal", "grass", "fed", "cage", "pasture", "raised", "antibiotic", "hormone",
     "chopped", "sliced", "diced", "shredded", "grated",
+    # From names with no match in saved recipes and in a list of common ingredients proposed by Claude Opus 5.5
+    # Not "ground" or "minced", they would turn "lean ground beef" into "beef"
+    "frozen", "canned", "boneless", "skinless", "lean",
 }
 
 

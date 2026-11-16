@@ -1,0 +1,106 @@
+# Recipes written with an LLM (Opus 5.5) to fit the Recipe model
+# Product types checked against PRODUCT_TYPES
+CURATED_RECIPES = [
+    {
+        "recipeName": "Cheesy Scrambled Eggs",
+        "description": "Soft scrambled eggs with melted cheese.",
+        "prepTime": 2,
+        "cookTime": 5,
+        "servings": 1,
+        "difficulty": "easy",
+        "ingredientsUsed": 3,
+        "ingredients": [
+            {"name": "eggs", "quantity": 3, "unit": "", "productType": "egg"},
+            {"name": "cheese", "quantity": 30, "unit": "g", "productType": "cheese"},
+            {"name": "butter", "quantity": 10, "unit": "g", "productType": "butter"},
+        ],
+        "instructions": [
+            "Whisk the eggs in a bowl.",
+            "Melt the butter in a pan over low heat and add the eggs.",
+            "Stir slowly until just set, then fold in the cheese.",
+        ],
+        "category": "breakfast",
+    },
+    {
+        "recipeName": "Chicken Fried Rice",
+        "description": "A quick fried rice with chicken, egg and onion.",
+        "prepTime": 10,
+        "cookTime": 15,
+        "servings": 2,
+        "difficulty": "easy",
+        "ingredientsUsed": 4,
+        "ingredients": [
+            {"name": "chicken", "quantity": 250, "unit": "g", "productType": "chicken"},
+            {"name": "cooked rice", "quantity": 400, "unit": "g", "productType": "rice"},
+            {"name": "egg", "quantity": 2, "unit": "", "productType": "egg"},
+            {"name": "onion", "quantity": 1, "unit": "", "productType": "onion"},
+        ],
+        "instructions": [
+            "Dice the chicken and onion.",
+            "Fry the chicken until cooked, then add the onion.",
+            "Push everything aside and scramble the eggs in the pan.",
+            "Add the rice and fry until hot.",
+        ],
+        "category": "platedMain",
+    },
+    {
+        "recipeName": "Tomato Garlic Pasta",
+        "description": "Pasta tossed in a fresh tomato and garlic sauce.",
+        "prepTime": 5,
+        "cookTime": 15,
+        "servings": 2,
+        "difficulty": "easy",
+        "ingredientsUsed": 3,
+        "ingredients": [
+            {"name": "pasta", "quantity": 200, "unit": "g", "productType": "pasta"},
+            {"name": "tomatoes", "quantity": 4, "unit": "", "productType": "tomato"},
+            {"name": "garlic", "quantity": 2, "unit": "cloves", "productType": "garlic"},
+        ],
+        "instructions": [
+            "Boil the pasta until tender.",
+            "Chop the tomatoes and garlic and simmer them for 10 minutes.",
+            "Drain the pasta and toss it in the sauce.",
+        ],
+        "category": "pasta",
+    },
+    {
+        "recipeName": "Potato Carrot Soup",
+        "description": "A simple blended soup of potato, carrot and onion.",
+        "prepTime": 10,
+        "cookTime": 25,
+        "servings": 4,
+        "difficulty": "easy",
+        "ingredientsUsed": 3,
+        "ingredients": [
+            {"name": "potatoes", "quantity": 3, "unit": "", "productType": "potato"},
+            {"name": "carrots", "quantity": 3, "unit": "", "productType": "carrot"},
+            {"name": "onion", "quantity": 1, "unit": "", "productType": "onion"},
+        ],
+        "instructions": [
+            "Chop all of the vegetables.",
+            "Cover with water and simmer for 20 minutes.",
+            "Blend until smooth.",
+        ],
+        "category": "soup",
+    },
+    {
+        "recipeName": "Spinach Grilled Cheese",
+        "description": "A crispy grilled cheese sandwich with spinach.",
+        "prepTime": 3,
+        "cookTime": 6,
+        "servings": 1,
+        "difficulty": "easy",
+        "ingredientsUsed": 3,
+        "ingredients": [
+            {"name": "bread", "quantity": 2, "unit": "slices", "productType": "bread"},
+            {"name": "cheese", "quantity": 50, "unit": "g", "productType": "cheese"},
+            {"name": "spinach", "quantity": 30, "unit": "g", "productType": "spinach"},
+        ],
+        "instructions": [
+            "Layer the cheese and spinach between the bread.",
+            "Toast in a pan on both sides until the cheese melts.",
+        ],
+        "category": "handheld",
+    },
+]
+

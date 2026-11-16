@@ -8,6 +8,10 @@ from app.actions.recipe_actions import recipe_actions
 
 router = APIRouter()
 
+@router.post("/seedRecipePool", description="Add the curated recipes to the recipe pool, skipping ones already there", tags=['Recipes'])
+def seed_recipe_pool(user = Depends(authorization_actions.verify_user_token)):
+    return recipe_actions.seed_recipe_pool()
+
 @router.post("/seedRecipes", tags=['Recipes'])
 def seed_recipes(
     recipes: list[Recipe] = Body(...),
