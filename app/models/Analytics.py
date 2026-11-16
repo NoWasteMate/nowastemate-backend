@@ -60,3 +60,10 @@ class WasteRisk(str, Enum):
     low = "low"
     medium = "medium"
     high = "high"
+
+class ProductWasteRisk(BaseModel):
+    id: str
+    name: str
+    productType: Optional[str] = None
+    dateExpiration: Optional[datetime] = None
+    risk: WasteRisk
