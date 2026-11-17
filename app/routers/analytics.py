@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, Query
 
 from app.models.Analytics import TrendPeriod, WasteTrend, WasteScoreSummary, ProductUsage
-from app.models import ProduceItem
+from app.models.ProduceItem import ProduceItem
 
 from app.actions.authorization_actions import authorization_actions
 from app.actions.analytics_actions import analytics_actions
