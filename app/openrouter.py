@@ -43,6 +43,20 @@ IMAGE_STYLE = """
     No people, no hands, no text, no logos, no watermarks.
 """
 
+# Adapted from my own cooking notes. Pushes the model toward flavour instead of only mixing the products
+# A salad or drink won't need most of these
+FLAVOUR_RULES = """
+    - Brown meat and vegetables for flavour, then deglaze the fond into the sauce.
+    - In cooked sauces, sweat or brown the onion before liquid goes in, and add garlic for the last minute so it doesn't burn.
+    - Heat the oil until shimmering, then fry tomato, chile or curry pastes until they darken and the oil separates.
+    - Toast whole spices, grains and nuts before liquid goes in. Bloom ground spices in fat for 10 to 15 seconds.
+    - Concentrate flavour: reduce sauces, use stock instead of water, and add umami boosters where they fit.
+    - Season in layers with salt at each stage, then finish with acid, fresh herbs or fat.
+    - Account for the salt in stock, bouillon and spice blends before adding more.
+    - Give temperatures and doneness cues in the instructions, not only times.
+"""
+
+
 # Profile restrictions that are a diet to follow. Everything else (Egg, Peanut, ...) is an ingredient to avoid
 DIETS = {"Keto", "Paleo", "Pescetarian", "Raw", "Vegan", "Vegetarian"}
 
@@ -63,7 +77,7 @@ def build_generation_options_rules(options: GenerateRecipeRequest, dietary_restr
     if diets:
         rules.append(f"- The recipe must follow these diets: {', '.join(diets)}.")
     if options.mealType:
-        rules.append(f'- category must be "{options.mealType.value}".')
+        rules.append(f'- category must be "{options.mealType.value}". Only use the products that suit this kind of dish.')
     if options.difficulty:
         rules.append(f'- difficulty must be "{options.difficulty.value}".')
     if options.maxTotalTime:
@@ -71,7 +85,7 @@ def build_generation_options_rules(options: GenerateRecipeRequest, dietary_restr
     if options.servings:
         rules.append(f"- The recipe must make {options.servings} servings.")
     if options.expiringFirst:
-        rules.append("- Build the recipe around the products with the lowest daysUntilExpiry.")
+        rules.append("- Prefer the products with the lowest daysUntilExpiry, but only when they suit the dish.")
 
     return "\n".join(rules)
 
@@ -93,8 +107,9 @@ def generate_recipe(products: list[dict[str, Any]], options: GenerateRecipeReque
     options_rules = build_generation_options_rules(options, dietary_restrictions)
 
     contents = f'''
-       Use the following products to create a creative recipe: {product_details}.
-       Make sure this single recipe is distinct, and use as many of these products as make sense together
+       Create a realistic recipe that a home cook would actually make, using some of these products: {product_details}.
+       First pick a well-known dish from a real cuisine that suits some of the products, then use only the products that belong in that dish.
+       It's fine to use only one or two products. Never force in a product that doesn't belong just to use it up.
 
         Return ONLY valid JSON representing the recipe.
 
@@ -105,6 +120,9 @@ def generate_recipe(products: list[dict[str, Any]], options: GenerateRecipeReque
         - Only output a single JSON object.
         - The ingredients list must include every ingredient used in the instructions, including pantry staples like oil, salt, garlic or soy sauce.
         {options_rules}
+
+        COOKING FUNDAMENTALS (use the ones that fit the dish):
+        {FLAVOUR_RULES}
 
         The JSON object must contain:
         - recipeName (string)
