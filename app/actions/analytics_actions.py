@@ -6,6 +6,7 @@ from fastapi import HTTPException
 from app.firebase import store, firestore
 from app.models.Analytics import TrendPeriod, WasteTrend, WasteTrendInformation, WasteRating, WasteScore, WasteScoreSummary, ProductUsage
 from app.models.Product import ProductOutcome, WasteReason
+from app.models.ProduceItem import ProduceItem
 from app.actions.family_actions import family_actions
 
 from typing import Optional
@@ -540,5 +541,25 @@ class AnalyticsActions:
         if score <= 95:
             return WasteRating.great
         return WasteRating.excellent
+    
+    #ref https://firebase.google.com/docs/firestore/manage-data/add-data#python_14
+    def post_picked_produce(self, uid: str, produceItem: ProduceItem):
+        #navigate to the specific predicted item, autocreates if missing
+        doc_ref = store.collection("analytics").document("produceList").collection(produceItem.predictedItem)
+        #set up object to add
+        #track user and timestamps
+        #this way we can filter after a period where we made a fix, or filter out/delete any bad data inserted by a specific user
+        obj = {
+                    "chosenProduce": produceItem.chosenItem,
+                    "createdAt": firestore.SERVER_TIMESTAMP,
+                    "createdBy": uid
+        }
+        #add to collection
+        doc_ref.add(obj)
+
+        return {"success": "Entry added"}
+
+
+
 
 analytics_actions = AnalyticsActions()
