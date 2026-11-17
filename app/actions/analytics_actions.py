@@ -44,8 +44,10 @@ DEFAULT_AVOIDABLE_SHARE = 0.63
 # Our chosen cutoffs in days left before expiry
 HIGH_RISK_DAYS = 2
 MEDIUM_RISK_DAYS = 5
-# more than half of the category's marked products were wasted, not compared to other categories
-CATEGORY_MOSTLY_WASTED_PERCENT = 50
+# Our chosen rule for an often wasted category: well above the user's own waste rate
+CATEGORY_ABOVE_AVERAGE_FACTOR = 1.5
+# and high enough to matter, so careful users aren't flagged over small numbers
+CATEGORY_MIN_WASTE_PERCENT = 25
 
 AVOIDABLE_REASONS = [
     WasteReason.expired.value,
@@ -594,6 +596,12 @@ class AnalyticsActions:
         for member in uids:
             category_waste = self.get_categories_wasted(member)
 
+            # same counts the Waste Score uses
+            consumed, wasted, avoidable = self.count_marked_products(member)
+            marked = consumed + wasted
+            overall_waste_percent = wasted / marked * 100 if marked > 0 else 0
+            above_average_percent = overall_waste_percent * CATEGORY_ABOVE_AVERAGE_FACTOR
+
             products_ref = (
                 store.collection("users")
                 .document(member)
@@ -613,7 +621,9 @@ class AnalyticsActions:
 
                 # same percentages as the category waste chart, so the user can see why
                 category_waste_percent = category_waste.get(data.get("category"), 0)
-                category_often_wasted = category_waste_percent > CATEGORY_MOSTLY_WASTED_PERCENT
+                is_above_average = category_waste_percent > above_average_percent
+                is_high_enough = category_waste_percent >= CATEGORY_MIN_WASTE_PERCENT
+                category_often_wasted = is_above_average and is_high_enough
                 if category_often_wasted:
                     risk = self.raise_waste_risk(risk)
 
