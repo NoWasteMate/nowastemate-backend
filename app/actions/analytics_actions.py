@@ -545,12 +545,12 @@ class AnalyticsActions:
     #ref https://firebase.google.com/docs/firestore/manage-data/add-data#python_14
     def post_picked_produce(self, uid: str, produceItem: ProduceItem):
         #navigate to the specific predicted item, autocreates if missing
-        doc_ref = store.collection("analytics").document("produceList").collection(produceItem.predictedItem)
+        doc_ref = store.collection("analytics").document("produceList").collection(produceItem.predictedProduce)
         #set up object to add
         #track user and timestamps
         #this way we can filter after a period where we made a fix, or filter out/delete any bad data inserted by a specific user
         obj = {
-                    "chosenProduce": produceItem.chosenItem,
+                    "chosenProduce": produceItem.chosenProduce,
                     "createdAt": firestore.SERVER_TIMESTAMP,
                     "createdBy": uid
         }
