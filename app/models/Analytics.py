@@ -54,3 +54,17 @@ class ProductUsage(BaseModel):
     usedInRecipeCount: int = 0
     wastedCount: int = 0
     byReason: dict[WasteReason, int] = Field(default_factory=dict)
+
+# Waste Risk Model
+class WasteRisk(str, Enum):
+    low = "low"
+    medium = "medium"
+    high = "high"
+
+class ProductWasteRisk(BaseModel):
+    id: str
+    name: str
+    productType: Optional[str] = None
+    dateExpiration: Optional[datetime] = None
+    risk: WasteRisk
+    categoryOftenWasted: bool = False

@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, Query
 
-from app.models.Analytics import TrendPeriod, WasteTrend, WasteScoreSummary, ProductUsage
+from app.models.Analytics import TrendPeriod, WasteTrend, WasteScoreSummary, ProductUsage, ProductWasteRisk
 from app.models.ProduceItem import ProduceItem
 
 from app.actions.authorization_actions import authorization_actions
@@ -40,6 +40,11 @@ def categories_wasted(familyId: str = "", user = Depends(authorization_actions.v
 def categories_wasted(user = Depends(authorization_actions.verify_user_token)):
     return analytics_actions.get_family_leaderboard(user["uid"])
 
+@router.get("/analytics/wasteRisk", tags=['Analytics'], response_model=list[ProductWasteRisk])
+def get_waste_risks(family: bool = False, user = Depends(authorization_actions.verify_user_token)):
+    return analytics_actions.get_waste_risks(user["uid"], family)
+
 @router.post("/analytics/pickedProduce", tags=['Analytics'])
 def picked_produce(produceItem: ProduceItem, user = Depends(authorization_actions.verify_user_token)):
     return analytics_actions.post_picked_produce(user["uid"], produceItem)
+

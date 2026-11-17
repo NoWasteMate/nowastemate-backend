@@ -4,7 +4,7 @@ from zoneinfo import ZoneInfo
 from fastapi import HTTPException
 
 from app.firebase import store, firestore
-from app.models.Analytics import TrendPeriod, WasteTrend, WasteTrendInformation, WasteRating, WasteScore, WasteScoreSummary, ProductUsage
+from app.models.Analytics import TrendPeriod, WasteTrend, WasteTrendInformation, WasteRating, WasteScore, WasteScoreSummary, ProductUsage, WasteRisk
 from app.models.Product import ProductOutcome, WasteReason
 from app.models.ProduceItem import ProduceItem
 from app.actions.family_actions import family_actions
@@ -40,6 +40,12 @@ SNAPSHOT_MAX_AGE = timedelta(days=1)
 DEFAULT_WASTE_RATE = 0.15
 # Based on the share of household food waste that could have been eaten
 DEFAULT_AVOIDABLE_SHARE = 0.63
+
+# Our chosen cutoffs in days left before expiry
+HIGH_RISK_DAYS = 2
+MEDIUM_RISK_DAYS = 5
+# more than half of the category's marked products were wasted, not compared to other categories
+CATEGORY_MOSTLY_WASTED_PERCENT = 50
 
 AVOIDABLE_REASONS = [
     WasteReason.expired.value,
@@ -110,7 +116,7 @@ class AnalyticsActions:
                 # added by mistake doesn't count
                 if reason == WasteReason.addedByMistake.value:
                     continue
-                
+
                 # older than the range (or in the future) has no bucket
                 bucket = buckets.get(self.period_start(outcome_at, period))
                 if bucket is None:
@@ -124,9 +130,9 @@ class AnalyticsActions:
                 else:
                     # consumed and usedInRecipe both count as consumed
                     bucket.consumedCount += 1
-        
+
         return WasteTrend(period=period, buckets=list(buckets.values()))
-    
+
     def get_categories_wasted(self, uid: str,familyId: str = ""):
 
         category_products = []
@@ -139,7 +145,7 @@ class AnalyticsActions:
                 .document(uid)
                 .collection("products")
                 )
-            
+
             products_document = products_ref.stream()
 
 
@@ -179,7 +185,7 @@ class AnalyticsActions:
 
                     if data.get("wasteReason") != "addedByMistake" and data.get("outcome") != "active":
                             category_products.append(data)
-        #for later calc    
+        #for later calc
         result = {}
 
         #overall products logged both consumed and wasted
@@ -190,8 +196,11 @@ class AnalyticsActions:
         #https://www.geeksforgeeks.org/python/python-increment-value-in-dictionary/
         #looping through all the products, each time it will add one to the overall, and one to wasted if it is wasted
         for i in category_products:
-            
-            current_category = i["category"]
+
+            current_category = i.get("category")
+            # found while reusing this for waste risk: a product without a category crashed here with a KeyError
+            if current_category is None:
+                continue
             #add 1 to the overall no matter what
             overall[current_category] = overall.get(current_category, 0) + 1
             #also add 1 to the wasted amount if product was wasted
@@ -206,12 +215,12 @@ class AnalyticsActions:
 
         return result
 
-        
-                    
-            
 
 
-        
+
+
+
+
 
 
 
@@ -227,15 +236,15 @@ class AnalyticsActions:
         usage = ProductUsage(days=days)
 
         # products_ref = (
-        #     store.collection("users") 
-        #     .document(uid) 
+        #     store.collection("users")
+        #     .document(uid)
         #     .collection("products")
         # )
 
         for member in uids:
             products_ref = (
-                store.collection("users") 
-                .document(member) 
+                store.collection("users")
+                .document(member)
                 .collection("products")
             )
 
@@ -261,16 +270,16 @@ class AnalyticsActions:
                     usage.consumedCount += 1
                 elif outcome == ProductOutcome.usedInRecipe.value:
                     # only stored outcomes count, generated recipes never do
-                    usage.usedInRecipeCount += 1 
+                    usage.usedInRecipeCount += 1
                 else:
                     usage.wastedCount += 1
 
-                    if reason: 
+                    if reason:
                         usage.byReason[WasteReason(reason)] = usage.byReason.get(WasteReason(reason), 0) + 1
 
         return usage
 
-        
+
 
     def count_marked_products(self, uid: str):
         consumed = 0
@@ -404,11 +413,8 @@ class AnalyticsActions:
                     result.append(member_result)
 
                 return result
-        else: 
+        else:
             return []
-
-
-
 
 
     # rebuilt here until the nightly job exists
@@ -561,5 +567,71 @@ class AnalyticsActions:
 
 
 
+
+    # Waste Risk methods section
+    def calculate_product_waste_risk(self, product: dict):
+        date_expiration = product.get("dateExpiration")
+        # no date to compare against yet
+        if date_expiration is None:
+            return WasteRisk.low
+
+        # .days drops the leftover hours, 1 day 23 hours is 1
+        # https://docs.python.org/3/library/datetime.html#timedelta-objects
+        time_until_expiry = date_expiration - datetime.now(timezone.utc)
+        days_until_expiry = time_until_expiry.days
+
+        # expired products have negative days and count as high
+        if days_until_expiry <= HIGH_RISK_DAYS:
+            return WasteRisk.high
+        if days_until_expiry <= MEDIUM_RISK_DAYS:
+            return WasteRisk.medium
+        return WasteRisk.low
+
+    def get_waste_risks(self, uid: str, family: bool = False):
+        uids = self.get_scope_uids(uid, family)
+        risks = []
+
+        for member in uids:
+            category_waste = self.get_categories_wasted(member)
+
+            products_ref = (
+                store.collection("users")
+                .document(member)
+                .collection("products")
+            )
+
+            for document in products_ref.stream():
+                data = document.to_dict()
+
+                outcome = data.get("outcome", ProductOutcome.active.value)
+
+                # skip the products already marked consumed or wasted because their outcome is already decided.
+                if outcome != ProductOutcome.active.value:
+                    continue
+
+                risk = self.calculate_product_waste_risk(data)
+
+                # same percentages as the category waste chart, so the user can see why
+                category_waste_percent = category_waste.get(data.get("category"), 0)
+                category_often_wasted = category_waste_percent > CATEGORY_MOSTLY_WASTED_PERCENT
+                if category_often_wasted:
+                    risk = self.raise_waste_risk(risk)
+
+                product_risk = {
+                    "id": document.id,
+                    "name": data.get("name"),
+                    "productType": data.get("productType"),
+                    "dateExpiration": data.get("dateExpiration"),
+                    "risk": risk,
+                    "categoryOftenWasted": category_often_wasted
+                }
+                risks.append(product_risk)
+
+        return risks
+
+    def raise_waste_risk(self, risk: WasteRisk):
+        if risk == WasteRisk.low:
+            return WasteRisk.medium
+        return WasteRisk.high
 
 analytics_actions = AnalyticsActions()
