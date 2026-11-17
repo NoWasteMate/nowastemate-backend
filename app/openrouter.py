@@ -9,6 +9,7 @@ import requests
 from typing import Any
 from dotenv import load_dotenv
 from app.models.Recipe.Recipe import Recipe
+from app.models.Recipe.GenerateRecipeRequest import GenerateRecipeRequest
 
 load_dotenv()
 openrouter_api_key = os.environ["OPENROUTER_API_KEY"]
@@ -42,16 +43,54 @@ IMAGE_STYLE = """
     No people, no hands, no text, no logos, no watermarks.
 """
 
-def generate_recipe(products: list[dict[str, Any]]):
+# Profile restrictions that are a diet to follow. Everything else (Egg, Peanut, ...) is an ingredient to avoid
+DIETS = {"Keto", "Paleo", "Pescetarian", "Raw", "Vegan", "Vegetarian"}
+
+
+def build_generation_options_rules(options: GenerateRecipeRequest, dietary_restrictions: list[str]):
+    avoided_ingredients = []
+    diets = []
+    for restriction in dietary_restrictions:
+        if restriction in DIETS:
+            diets.append(restriction)
+        else:
+            avoided_ingredients.append(restriction)
+
+    rules = []
+
+    if avoided_ingredients:
+        rules.append(f"- The recipe must not contain {', '.join(avoided_ingredients)}, including in pantry staples and sauces. Leave out any product that does.")
+    if diets:
+        rules.append(f"- The recipe must follow these diets: {', '.join(diets)}.")
+    if options.mealType:
+        rules.append(f'- category must be "{options.mealType.value}".')
+    if options.difficulty:
+        rules.append(f'- difficulty must be "{options.difficulty.value}".')
+    if options.maxTotalTime:
+        rules.append(f"- prepTime plus cookTime must be {options.maxTotalTime} minutes or less.")
+    if options.servings:
+        rules.append(f"- The recipe must make {options.servings} servings.")
+    if options.expiringFirst:
+        rules.append("- Build the recipe around the products with the lowest daysUntilExpiry.")
+
+    return "\n".join(rules)
+
+
+def generate_recipe(products: list[dict[str, Any]], options: GenerateRecipeRequest, dietary_restrictions: list[str]):
 
     product_details =[]
 
     for p in products:
-        product_details.append({
+        detail = {
             "id": p['id'],
             "name": p['name'],
             "quantity": p['quantity']
-        })
+        }
+        if "daysUntilExpiry" in p:
+            detail["daysUntilExpiry"] = p["daysUntilExpiry"]
+        product_details.append(detail)
+
+    options_rules = build_generation_options_rules(options, dietary_restrictions)
 
     contents = f'''
        Use the following products to create a creative recipe: {product_details}.
@@ -65,6 +104,7 @@ def generate_recipe(products: list[dict[str, Any]]):
         - Do NOT include explanation text.
         - Only output a single JSON object.
         - The ingredients list must include every ingredient used in the instructions, including pantry staples like oil, salt, garlic or soy sauce.
+        {options_rules}
 
         The JSON object must contain:
         - recipeName (string)
@@ -72,7 +112,7 @@ def generate_recipe(products: list[dict[str, Any]]):
         - prepTime (integer)
         - cookTime (integer)
         - servings (integer)
-        - difficulty (string)
+        - difficulty (string, exactly one of: "easy", "medium", "hard")
         - ingredientsUsed(integer, how many ingredients used from products)
         - ingredients: list of objects with 'name'(str, the plain ingredient name with no brand, size or preparation, e.g. "chicken breast"), 'quantity'(int), 'unit' (str), and ONLY IF using provided product 'productId: string' otherwise 'productId: null'
         - instructions: list of strings

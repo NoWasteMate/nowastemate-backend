@@ -2,8 +2,11 @@ from fastapi import HTTPException, status
 from urllib.parse import quote, unquote
 from uuid import uuid4
 
+from datetime import datetime, timezone
+
 from app.data.curated_recipes import CURATED_RECIPES
 from app.models.Recipe.Recipe import Recipe
+from app.models.Recipe.GenerateRecipeRequest import GenerateRecipeRequest
 from app.models.Product import ProductOutcome
 from app.firebase import bucket, firestore, store
 
@@ -12,6 +15,7 @@ from app.vocabulary.normalize import normalize_name
 from app.vocabulary.product_types import PRODUCT_TYPES
 from app.actions.family_actions import family_actions
 from app.actions.product_actions import product_actions
+from app.actions.user_actions import user_actions
 
 MAX_MISSING = 2
 MAX_SUGGESTIONS = 3
@@ -88,7 +92,7 @@ class RecipeActions:
     def add_recipe(self, uid: str, recipe: Recipe):
         return self.save_recipe_for_user(recipe=recipe, uid=uid)
 
-    def generate_recipe_from_products(self, uid: str, product_ids: list[str]):
+    def generate_recipe_from_products(self, uid: str, options: GenerateRecipeRequest):
         products_ref = (
             store.collection("users")
             .document(uid)
@@ -108,12 +112,31 @@ class RecipeActions:
                 continue
 
             # only use the products the user picked
-            if document.id not in product_ids:
+            if document.id not in options.productIds:
                 continue
+
+            # Counted by UTC date so the prompt doesn't depend on the time of day
+            # https://docs.python.org/3/library/datetime.html#datetime.date (date2 - date1 gives a timedelta)
+            if options.expiringFirst and data.get("dateExpiration"):
+                expiry_date = data["dateExpiration"].astimezone(timezone.utc).date()
+                today = datetime.now(timezone.utc).date()
+                data["daysUntilExpiry"] = (expiry_date - today).days
 
             products.append({"id": document.id, **data})
 
-        recipe_json: Recipe = generate_recipe(products)
+        # Only the generating user's restrictions, not the rest of the family
+        user_info = user_actions.get_current_user_info(uid)
+        dietary_restrictions = user_info.get("dietaryRestrictions", [])
+
+        recipe_json: Recipe = generate_recipe(products, options, dietary_restrictions)
+
+        # The model can ignore the prompt, and there's no retry. What the user picked wins
+        if options.servings:
+            recipe_json.servings = options.servings
+        if options.mealType:
+            recipe_json.category = options.mealType
+        if options.difficulty:
+            recipe_json.difficulty = options.difficulty.value
 
         products_by_id = {}
         for product in products:

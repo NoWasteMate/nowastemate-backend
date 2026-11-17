@@ -25,7 +25,7 @@ def add_recipe(recipe: Recipe, user = Depends(authorization_actions.verify_user_
 
 @router.post("/generateRecipe", description="Generate a recipe from the users selected products and adds to user collection", tags=['Recipes'])
 def generate_recipe_from_products(request: GenerateRecipeRequest, user = Depends(authorization_actions.verify_user_token)):
-    return recipe_actions.generate_recipe_from_products(user["uid"], request.productIds)
+    return recipe_actions.generate_recipe_from_products(user["uid"], request)
 
 @router.get("/getAllRecipes", description="Return a list of all recipe items from the user", tags=['Recipes'])
 def get_all_recipes(user = Depends(authorization_actions.verify_user_token)):

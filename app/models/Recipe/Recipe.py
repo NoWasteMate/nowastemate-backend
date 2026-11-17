@@ -14,6 +14,12 @@ class RecipeCategory(str, Enum):
     platedMain = "platedMain"
     general = "general"
 
+# Request only. Recipe.difficulty stays a str since older recipes say "Moderate"
+class RecipeDifficulty(str, Enum):
+    easy = "easy"
+    medium = "medium"
+    hard = "hard"
+
 class Recipe(BaseModel):
     recipeName: str
     description: str
