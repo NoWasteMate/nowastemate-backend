@@ -369,6 +369,62 @@ class RecipeActions:
 
         return self.save_recipe_for_user(recipe=recipe, uid=uid)
 
+    def rate_recipe(self, uid: str, recipe_id: str, rating: int):
+        recipe_ref = (
+            store.collection('users')
+            .document(uid)
+            .collection('recipes')
+            .document(recipe_id)
+        )
+        recipe_doc = recipe_ref.get()
+        if not recipe_doc.exists:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Unable to find Recipe Id: {recipe_id}"
+            )
+
+        # Only pool recipes that HAVE totals to add the rating to
+        pool_id = recipe_doc.to_dict().get("poolId")
+        if not pool_id:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Recipe Id: {recipe_id} is not in the recipe pool"
+            )
+
+        pool_ref = store.collection("recipePool").document(pool_id)
+        # Using uid so it's one rating per user
+        rating_ref = pool_ref.collection("ratings").document(uid)
+
+        rating_doc = rating_ref.get()
+
+        # Rating again swaps the old rating out of the total instead of counting twice
+        if rating_doc.exists:
+            old_rating = rating_doc.to_dict()["rating"]
+            count_change = 0
+            total_change = rating - old_rating
+        else:
+            count_change = 1
+            total_change = rating
+
+        # A batch saves all three writes together or none of them!
+        # https://firebase.google.com/docs/firestore/manage-data/transactions#batched-writes
+        batch = store.batch()
+        batch.set(rating_ref, {
+            "rating": rating,
+            "ratedAt": firestore.SERVER_TIMESTAMP
+        })
+
+        # increment adds to the stored number, so two users rating at once both count.
+        # https://firebase.google.com/docs/firestore/manage-data/add-data#increment_a_numeric_value
+        batch.update(pool_ref, {
+            "ratingCount": firestore.Increment(count_change),
+            "ratingTotal": firestore.Increment(total_change)
+        })
+        batch.update(recipe_ref, {"rating": rating})
+        batch.commit()
+
+        return {"id": recipe_id, "message": "Recipe rated"}
+
     def get_suggestion_owned_count(self, suggestion: dict):
         return suggestion["ingredientsUsed"]
 
