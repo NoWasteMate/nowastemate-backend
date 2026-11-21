@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, Body, Path
 from typing import Optional
 
-from app.models.Product import Product, ProductList, ProductUpdate, ProductOutcomeUpdate
+from app.models.Product import Product, ProductList, ProductUpdate, ProductOutcomeUpdate, ProductCreate
 from app.actions.authorization_actions import authorization_actions
 from app.actions.product_actions import product_actions
 
@@ -19,7 +19,7 @@ def seed_products(
     return product_actions.seed_products(user["uid"], products)
 
 @router.post("/products", tags=['Products'])
-def add_product(product: Product, user = Depends(authorization_actions.verify_user_token)):
+def add_product(product: ProductCreate, user = Depends(authorization_actions.verify_user_token)):
     return product_actions.add_product(user["uid"], product)
 
 # Want to make a get request to get the information of all products

@@ -73,7 +73,9 @@ class ProductActions:
         product.category = self.pick_category(product.productType, product.categoryTags)
 
         doc_ref.set({
-            **product.model_dump(exclude={"categoryTags", "ownerId", "ownerName"}),
+            # the server needs to decide outcome fields, never client
+            **product.model_dump(exclude={"categoryTags", "ownerId", "ownerName", "outcome", "outcomeAt", "wasteReason"}),
+            "outcome": ProductOutcome.active.value,
             "createdAt": firestore.SERVER_TIMESTAMP,
             "createdBy": uid
         })
@@ -189,15 +191,33 @@ class ProductActions:
         #     .document(product_id)
         # )
 
+        #products_ref = self.find_product_ref(uid, product_id)
+
+        update_data = product.model_dump(exclude_unset=True, exclude_none=True)
+
+        # checking before Firestore checks
+        if not update_data:
+            raise HTTPException(status_code=422, detail="Nothing to update")
+
+        # will return 404 if missing
         products_ref = self.find_product_ref(uid, product_id)
 
-        update_data = product.model_dump(exclude_unset=True)
+        # same rules and message as mark_product_outcome
+        current = products_ref.get().to_dict() or {}
 
-        # keeps the category picked in Edit
-        if product.name is not None:
-            product_type, product_type_source = normalize_name(product.name)
+        if current.get("outcome", ProductOutcome.active.value) != ProductOutcome.active.value:
+            raise HTTPException(status_code=409, detail="Product Already Marked")
+
+        if "name" in update_data:
+            product_type, product_type_source = normalize_name(update_data["name"])
             update_data["productType"] = product_type
             update_data["productTypeSource"] = product_type_source
+
+        # keeps the category picked in Edit
+        # if product.name is not None:
+        #     product_type, product_type_source = normalize_name(product.name)
+        #     update_data["productType"] = product_type
+        #     update_data["productTypeSource"] = product_type_source
 
         products_ref.update(update_data)
 
@@ -336,7 +356,12 @@ class ProductActions:
 
             # product = product_ref.get().to_dict()
 
-            product = product_ref.get().to_dict()
+            product = product_ref.get().to_dict() or {}
+
+            category = product.get("category")
+            quantity = product.get("quantity") or 0
+            created_at = product.get("createdAt")
+            expiration = product.get("dateExpiration")
 
 
             #getting product in categorie to calculate the average
@@ -353,12 +378,13 @@ class ProductActions:
             products_document = products_ref.stream()
 
             category_products = []
-            for document in products_document:
-                data = document.to_dict()
+            if category is not None:
+                for document in products_document:
+                    data = document.to_dict()
 
-                #filter out own product as well as products not in the selected category
-                if data.get("category") == product["category"] and document.id != diagnostic_product:
-                    category_products.append({"id": document.id, **data})
+                    #filter out own product as well as products not in the selected category
+                    if data.get("category") == category and document.id != diagnostic_product:
+                        category_products.append({"id": document.id, **data})
 
             avg = 0
             large_diff = False
@@ -369,7 +395,8 @@ class ProductActions:
 
             if len(category_products) != 0:
                 for document in category_products:
-                    avg += document["quantity"]
+                    # other products may be missing quantity
+                    avg += document.get("quantity") or 0
 
                     if document.get("outcome") == "wasted":
                         wasted_count += 1
@@ -377,44 +404,47 @@ class ProductActions:
                             avg_stored_wrong += 1
 
                 avg = avg / len(category_products)
+
                 #checking what percentage of products are stored wrong, if it is abnormally high, we suggest this
                 if wasted_count != 0 and avg_stored_wrong != 0 and wasted_count >= 5:
                     stored_wrong_percentage = avg_stored_wrong / wasted_count
                     if stored_wrong_percentage > 0.5:
                         stored_wrong = True
                 #trigger if the quantity is double that of the average and we have sufficient existing products logged
-                if product["quantity"] / avg >= 2 and len(category_products) > 5:
+                #avg > 0 guards against dividing by zero when every quantity is 0
+                if avg > 0 and quantity / avg >= 2 and len(category_products) > 5:
                     large_diff = True
-
-                
 
             #having difference of time available
             time = datetime.now(timezone.utc)
-            time_since_creation = time - product["createdAt"]
-            time_to_expiry = time - product["dateExpiration"]
-            
-            is_expired = False
 
-            #a baseline to see if product is expired, so we dont have to keep checking
-            if product["dateExpiration"] < datetime.now(timezone.utc):
-                is_expired = True
-
-
-            #if we see product was added very recently, it was likely in error
-            #this goes first and should take priority over any other cases
-            if time_since_creation  <= timedelta(minutes=10):
+            # if we see product was added very recently, it was likely in error
+            # this goes first and should take priority over any other cases
+            if created_at is not None and time - created_at <= timedelta(minutes=10):
                 return WasteReason.addedByMistake
 
-            #Bought too much
+            # bought too much
             if large_diff:
                 return WasteReason.boughtTooMuch
-            
+
+            #the rules below need an expiry date (seeded products have none)
+            if expiration is None:
+                if stored_wrong:
+                    return WasteReason.storedWrong
+                return WasteReason.other
+
+            time_since_creation = time - created_at if created_at is not None else None
+            time_to_expiry = time - expiration
+
+            #a baseline to see if product is expired, so we dont have to keep checking
+            is_expired = expiration < time
+
             #Stored Wrong
             if is_expired == False and stored_wrong:
                 return WasteReason.storedWrong
 
             #Bad Quality
-            if is_expired == False and time_to_expiry <= timedelta(days=-2) and time_since_creation < timedelta(days=1):
+            if is_expired == False and time_to_expiry <= timedelta(days=-2) and time_since_creation is not None and time_since_creation < timedelta(days=1):
                 return WasteReason.badQuality             
             
             #Forgot about product

@@ -2,12 +2,17 @@ from pydantic import BaseModel
 import firebase_admin
 from firebase_admin import firestore
 #reference: https://www.geeksforgeeks.org/python/make-every-field-optional-with-pydantic-in-python/
-from typing import Optional
-from pydantic import BaseModel
+from typing import Annotated, Optional
+from pydantic import BaseModel, Field, StringConstraints
 from datetime import datetime 
 
 #reference for enums: https://fastapi.tiangolo.com/tutorial/path-params/#compare-enumeration-members
 from enum import Enum
+
+# reusable field types
+# reference: https://docs.pydantic.dev/latest/concepts/fields/
+ProductName = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=100)]
+ProductQuantity = Annotated[int, Field(ge=1, le=999)]
 
 class ProductCategory(str, Enum):
     produce = "produce"
@@ -56,8 +61,8 @@ class Product(BaseModel):
 
 #subject to change
 class ProductUpdate(BaseModel):
-    name: Optional[str] = None
-    quantity: Optional[int] = None
+    name: Optional[ProductName] = None
+    quantity: Optional[ProductQuantity] = None
     category: Optional[ProductCategory] = None
     dateExpiration: Optional[datetime] = None
     #dateRemoved: Optional[str] = None
@@ -69,3 +74,8 @@ class ProductOutcomeUpdate(BaseModel):
 
 class ProductList(BaseModel):
     products: list[Product]
+
+# to check for POST method only
+class ProductCreate(Product):
+    name: ProductName
+    quantity: ProductQuantity
