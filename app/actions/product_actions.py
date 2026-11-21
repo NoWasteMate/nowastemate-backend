@@ -73,7 +73,9 @@ class ProductActions:
         product.category = self.pick_category(product.productType, product.categoryTags)
 
         doc_ref.set({
-            **product.model_dump(exclude={"categoryTags", "ownerId", "ownerName"}),
+            # the server needs to decide outcome fields, never client
+            **product.model_dump(exclude={"categoryTags", "ownerId", "ownerName", "outcome", "outcomeAt", "wasteReason"}),
+            "outcome": ProductOutcome.active.value,
             "createdAt": firestore.SERVER_TIMESTAMP,
             "createdBy": uid
         })
