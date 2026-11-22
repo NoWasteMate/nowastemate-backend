@@ -7,6 +7,7 @@ from datetime import datetime, timezone
 from app.data.curated_recipes import CURATED_RECIPES
 from app.models.Recipe.Recipe import Recipe
 from app.models.Recipe.GenerateRecipeRequest import GenerateRecipeRequest
+from app.models.Recipe.AddRecipeFeedbackRequest import AddRecipeFeedbackRequest
 from app.models.Product import ProductOutcome
 from app.firebase import bucket, firestore, store
 
@@ -15,6 +16,7 @@ from app.vocabulary.normalize import normalize_name
 from app.vocabulary.product_types import PRODUCT_TYPES
 from app.actions.family_actions import family_actions
 from app.actions.product_actions import product_actions
+from app.actions.analytics_actions import analytics_actions
 from app.actions.user_actions import user_actions
 
 MAX_MISSING = 2
@@ -369,7 +371,7 @@ class RecipeActions:
 
         return self.save_recipe_for_user(recipe=recipe, uid=uid)
 
-    def rate_recipe(self, uid: str, recipe_id: str, rating: int):
+    def add_recipe_feedback(self, uid: str, recipe_id: str, feedback: AddRecipeFeedbackRequest):
         recipe_ref = (
             store.collection('users')
             .document(uid)
@@ -383,47 +385,72 @@ class RecipeActions:
                 detail=f"Unable to find Recipe Id: {recipe_id}"
             )
 
-        # Only pool recipes that HAVE totals to add the rating to
         pool_id = recipe_doc.to_dict().get("poolId")
-        if not pool_id:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Recipe Id: {recipe_id} is not in the recipe pool"
-            )
 
-        pool_ref = store.collection("recipePool").document(pool_id)
-        # Using uid so it's one rating per user
-        rating_ref = pool_ref.collection("ratings").document(uid)
+        marked_product_ids = []
+        marked_product_refs = []
+        owner_uids = set()
+        for product_id in feedback.productIds:
+            product_ref = product_actions.find_product_ref(uid, product_id)
+            product_doc = product_ref.get()
 
-        rating_doc = rating_ref.get()
+            # Skip products that were already consumed, wasted or used
+            outcome = product_doc.to_dict().get("outcome", ProductOutcome.active.value)
+            if outcome != ProductOutcome.active.value:
+                continue
 
-        # Rating again swaps the old rating out of the total instead of counting twice
-        if rating_doc.exists:
-            old_rating = rating_doc.to_dict()["rating"]
-            count_change = 0
-            total_change = rating - old_rating
-        else:
-            count_change = 1
-            total_change = rating
+            marked_product_ids.append(product_id)
+            marked_product_refs.append(product_ref)
+            owner_uids.add(product_ref.parent.parent.id)
 
-        # A batch saves all three writes together or none of them!
+        feedback_ref = (
+            store.collection("users")
+            .document(uid)
+            .collection("recipeFeedback")
+            .document()
+        )
+
+        # A batch saves all the writes together or none of them!
         # https://firebase.google.com/docs/firestore/manage-data/transactions#batched-writes
         batch = store.batch()
-        batch.set(rating_ref, {
-            "rating": rating,
-            "ratedAt": firestore.SERVER_TIMESTAMP
+        for product_ref in marked_product_refs:
+            batch.update(product_ref, {
+                "outcome": ProductOutcome.usedInRecipe.value,
+                "outcomeAt": firestore.SERVER_TIMESTAMP,
+                "wasteReason": None
+            })
+
+        batch.set(feedback_ref, {
+            "recipeId": recipe_id,
+            "poolId": pool_id,
+            "productIds": marked_product_ids,
+            "makeAgain": feedback.makeAgain,
+            "leftovers": feedback.leftovers.value if feedback.leftovers else None,
+            "createdAt": firestore.SERVER_TIMESTAMP
         })
 
-        # increment adds to the stored number, so two users rating at once both count.
-        # https://firebase.google.com/docs/firestore/manage-data/add-data#increment_a_numeric_value
-        batch.update(pool_ref, {
-            "ratingCount": firestore.Increment(count_change),
-            "ratingTotal": firestore.Increment(total_change)
-        })
-        batch.update(recipe_ref, {"rating": rating})
+        if pool_id:
+            # increment adds to the stored number, so two users answering at once both count.
+            # https://firebase.google.com/docs/firestore/manage-data/add-data#increment_a_numeric_value
+            pool_counts = {"madeCount": firestore.Increment(1)}
+            if feedback.makeAgain is not None:
+                pool_counts["answeredMakeAgainCount"] = firestore.Increment(1)
+            if feedback.makeAgain:
+                pool_counts["makeAgainCount"] = firestore.Increment(1)
+
+            # Dotted path updates just that key inside the leftoversCounts map
+            # https://firebase.google.com/docs/firestore/manage-data/add-data#update_fields_in_nested_objects
+            if feedback.leftovers:
+                pool_counts[f"leftoversCounts.{feedback.leftovers.value}"] = firestore.Increment(1)
+
+            batch.update(store.collection("recipePool").document(pool_id), pool_counts)
+
         batch.commit()
 
-        return {"id": recipe_id, "message": "Recipe rated"}
+        for owner_uid in owner_uids:
+            analytics_actions.refresh_user_counts(owner_uid)
+
+        return {"id": feedback_ref.id, "message": "Recipe feedback added"}
 
     def get_suggestion_owned_count(self, suggestion: dict):
         return suggestion["ingredientsUsed"]

@@ -33,4 +33,3 @@ class Recipe(BaseModel):
     category: RecipeCategory
     imageUrl: Optional[str] = None
     poolId: Optional[str] = None
-    rating: Optional[int] = None
