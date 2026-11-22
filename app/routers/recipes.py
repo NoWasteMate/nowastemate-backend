@@ -2,6 +2,7 @@ from fastapi import APIRouter, Body, Depends
 
 from app.models.Recipe.Recipe import Recipe
 from app.models.Recipe.GenerateRecipeRequest import GenerateRecipeRequest
+from app.models.Recipe.AddRecipeFeedbackRequest import AddRecipeFeedbackRequest
 from app.actions.authorization_actions import authorization_actions
 from app.actions.recipe_actions import recipe_actions
 
@@ -42,3 +43,7 @@ def get_suggested_recipes(user = Depends(authorization_actions.verify_user_token
 @router.post("/saveSuggestedRecipe/{pool_id}", description="Save a copy of a suggested pool recipe to the user", tags=['Recipes'])
 def save_suggested_recipe(pool_id: str, user = Depends(authorization_actions.verify_user_token)):
     return recipe_actions.save_suggested_recipe(user["uid"], pool_id)
+
+@router.post("/addRecipeFeedback/{recipe_id}", description="Mark the products used in a recipe and save optional make again and leftovers answers", tags=['Recipes'])
+def add_recipe_feedback(recipe_id: str, request: AddRecipeFeedbackRequest, user = Depends(authorization_actions.verify_user_token)):
+    return recipe_actions.add_recipe_feedback(user["uid"], recipe_id, request)
