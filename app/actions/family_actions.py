@@ -51,9 +51,13 @@ class FamilyActions:
             if doc.exists:
                 return doc.to_dict()
             else:
-                return {"error": "Family not found"}
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND, 
+                    detail="Family not found")
         else:
-            return {"error": "User does not not have a family"}
+            raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND, 
+                    detail="No family found under ID")
 
     def join_family(self, uid: str, family_join_code: FamilyJoinCode):
 
@@ -62,7 +66,7 @@ class FamilyActions:
         user_doc = user_doc_ref.get()
 
         if not user_doc.exists:
-            return {"error": "User not found"}
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User does not exist")
 
         json = user_doc.to_dict()
 
@@ -103,7 +107,8 @@ class FamilyActions:
         doc = doc_ref.get()
 
         if not doc.exists:
-            return {"error": "Code not found"}
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Family not found")
+
 
         json = doc.to_dict()
 
@@ -125,14 +130,15 @@ class FamilyActions:
             })
             return {"success": "User added to family"}
         else:
-            return {"error": "User already in family"}
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="User already in family")
+
 
     def get_family_id(self, uid: str):
         user_doc_ref = store.collection("users").document(uid)
 
         user_check = user_doc_ref.get()
         if not user_check.exists:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail = "User does not have a family")
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
 
         fam_id = user_check.to_dict().get("familyId")
 
@@ -170,7 +176,7 @@ class FamilyActions:
         user_check = user_doc_ref.get()
         #https://stackoverflow.com/questions/51483234/how-to-know-if-document-exists-in-firestore-python
         if not user_check.exists:
-            return "error"
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
 
         user_doc = user_check.to_dict()
 
@@ -201,8 +207,7 @@ class FamilyActions:
                     {
                         "member": i,
                         "email": email,
-                        "firstName" : json.get("firstName"),
-                        "lastName" : json.get("lastName")
+                        "firstName" : json.get("firstName")
                     }
                 )
 
@@ -214,7 +219,7 @@ class FamilyActions:
         user_check = user_doc_ref.get()
         #https://stackoverflow.com/questions/51483234/how-to-know-if-document-exists-in-firestore-python
         if not user_check.exists:
-            return "error"
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
 
         user_doc = user_check.to_dict()
 
@@ -245,7 +250,7 @@ class FamilyActions:
         user_check = user_doc_ref.get()
         #https://stackoverflow.com/questions/51483234/how-to-know-if-document-exists-in-firestore-python
         if not user_check.exists:
-            return "error"
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
 
         user_doc = user_check.to_dict()
 
@@ -260,8 +265,7 @@ class FamilyActions:
         #https://fastapi.tiangolo.com/reference/status/
 
         if member.member not in fam["members"]:
-            print(member)
-            print(fam["members"])
+            
             raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST, 
                     detail="New owner is not currently apart of the family")
@@ -285,7 +289,7 @@ class FamilyActions:
         user_check = user_doc_ref.get()
         #https://stackoverflow.com/questions/51483234/how-to-know-if-document-exists-in-firestore-python
         if not user_check.exists:
-            return "error"
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
 
         user_doc = user_check.to_dict()
 
@@ -329,7 +333,7 @@ class FamilyActions:
         user_check = user_doc_ref.get()
         #https://stackoverflow.com/questions/51483234/how-to-know-if-document-exists-in-firestore-python
         if not user_check.exists:
-            return "error"
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
 
         user_doc = user_check.to_dict()
 
@@ -373,7 +377,7 @@ class FamilyActions:
         user_check = user_doc_ref.get()
         #https://stackoverflow.com/questions/51483234/how-to-know-if-document-exists-in-firestore-python
         if not user_check.exists:
-            return "error"
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
 
         user_doc = user_check.to_dict()
 
@@ -407,21 +411,5 @@ class FamilyActions:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Not the family owner or family has multiple members")
-
-
-
-
-            
-        
-
-
-        
-
- 
-        
-
-
-
-
 
 family_actions = FamilyActions()
