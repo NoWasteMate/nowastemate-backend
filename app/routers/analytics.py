@@ -37,7 +37,7 @@ def categories_wasted(familyId: str = "", user = Depends(authorization_actions.v
     return analytics_actions.get_categories_wasted(user["uid"], familyId)
 
 @router.get("/analytics/familyLeaderboard", tags=['Analytics'])
-def categories_wasted(user = Depends(authorization_actions.verify_user_token)):
+def family_leaderboard(user = Depends(authorization_actions.verify_user_token)):
     return analytics_actions.get_family_leaderboard(user["uid"])
 
 @router.get("/analytics/wasteRisk", tags=['Analytics'], response_model=list[ProductWasteRisk])
