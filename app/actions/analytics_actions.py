@@ -260,7 +260,7 @@ class AnalyticsActions:
                 outcome = data.get("outcome", ProductOutcome.active.value)
                 outcome_at = data.get("outcomeAt")
                 reason = data.get("wasteReason")
-                items = data.get("quantity" or 1)
+                items = data.get("quantity") or 1
 
                 # active products are not finished yet
                 if outcome not in finished_outcomes:
