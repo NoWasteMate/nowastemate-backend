@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Body, Path
+from fastapi import APIRouter, Depends, Body, Path, Query
 from typing import Optional
 
 from app.models.Product import Product, ProductList, ProductUpdate, ProductOutcomeUpdate, ProductCreate
@@ -66,6 +66,17 @@ def get_barcode_details(
 @router.get("/productTypes", tags=['Products'])
 def get_product_types(version: Optional[int] = None, user = Depends(authorization_actions.verify_user_token)):
     return product_actions.get_product_types(version)
+
+# resolves a name to a Product Type without saving
+# Query(None) makes repeated ?tags= params parse as a query list instead of a body
+# https://fastapi.tiangolo.com/tutorial/query-params-str-validations/#query-parameter-list-multiple-values
+@router.get("/resolveProductType", tags=['Products'])
+def resolve_product_type(
+    name: str,
+    tags: Optional[list[str]] = Query(None),
+    user = Depends(authorization_actions.verify_user_token)
+):
+    return product_actions.resolve_product_type(name, tags)
 
 
 
