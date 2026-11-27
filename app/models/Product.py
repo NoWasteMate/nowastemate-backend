@@ -58,6 +58,7 @@ class Product(BaseModel):
     wasteReason: Optional[WasteReason] = None
     ownerId: Optional[str] = None
     ownerName: Optional[str] = None
+    splitFrom: Optional[str] = None
 
 #subject to change
 class ProductUpdate(BaseModel):
@@ -65,6 +66,9 @@ class ProductUpdate(BaseModel):
     quantity: Optional[ProductQuantity] = None
     category: Optional[ProductCategory] = None
     dateExpiration: Optional[datetime] = None
+    outcome: ProductOutcome
+    wasteReason: Optional[WasteReason] = None
+    quantity: Optional[ProductQuantity] = None
     #dateRemoved: Optional[str] = None
     #usedInRecipe: Optional[str] = None
 
