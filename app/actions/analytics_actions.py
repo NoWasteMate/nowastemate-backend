@@ -111,6 +111,9 @@ class AnalyticsActions:
                 outcome_at = data.get("outcomeAt")
                 reason = data.get("wasteReason")
 
+                # a finished product counts as its quantity
+                items = data.get("quantity") or 1
+
                 # active products and legacy products without outcomeAt are skipped
                 if outcome == ProductOutcome.active.value or outcome_at is None:
                     continue
@@ -125,13 +128,13 @@ class AnalyticsActions:
                     continue
 
                 if outcome == ProductOutcome.wasted.value:
-                    bucket.wastedCount += 1
+                    bucket.wastedCount += items
                     #reason = data.get("wasteReason")
                     if reason:
-                        bucket.byReason[WasteReason(reason)] = bucket.byReason.get(WasteReason(reason), 0) + 1
+                        bucket.byReason[WasteReason(reason)] = bucket.byReason.get(WasteReason(reason), 0) + items
                 else:
                     # consumed and usedInRecipe both count as consumed
-                    bucket.consumedCount += 1
+                    bucket.consumedCount += items
 
         return WasteTrend(period=period, buckets=list(buckets.values()))
 
@@ -203,11 +206,13 @@ class AnalyticsActions:
             # found while reusing this for waste risk: a product without a category crashed here with a KeyError
             if current_category is None:
                 continue
+            # a finished product counts as its quantity
+            items = i.get("quantity") or 1
             #add 1 to the overall no matter what
-            overall[current_category] = overall.get(current_category, 0) + 1
+            overall[current_category] = overall.get(current_category, 0) + items
             #also add 1 to the wasted amount if product was wasted
             if i.get("outcome") == "wasted":
-                wasted[current_category] = wasted.get(current_category, 0) + 1
+                wasted[current_category] = wasted.get(current_category, 0) + items
 
         #https://www.geeksforgeeks.org/python/iterate-over-a-dictionary-in-python/
         #we need to check that the key exists in cases where there
@@ -255,6 +260,7 @@ class AnalyticsActions:
                 outcome = data.get("outcome", ProductOutcome.active.value)
                 outcome_at = data.get("outcomeAt")
                 reason = data.get("wasteReason")
+                items = data.get("quantity" or 1)
 
                 # active products are not finished yet
                 if outcome not in finished_outcomes:
@@ -269,15 +275,15 @@ class AnalyticsActions:
                     continue
 
                 if outcome == ProductOutcome.consumed.value:
-                    usage.consumedCount += 1
+                    usage.consumedCount += items
                 elif outcome == ProductOutcome.usedInRecipe.value:
                     # only stored outcomes count, generated recipes never do
-                    usage.usedInRecipeCount += 1
+                    usage.usedInRecipeCount += items
                 else:
-                    usage.wastedCount += 1
+                    usage.wastedCount += items
 
                     if reason:
-                        usage.byReason[WasteReason(reason)] = usage.byReason.get(WasteReason(reason), 0) + 1
+                        usage.byReason[WasteReason(reason)] = usage.byReason.get(WasteReason(reason), 0) + items
 
         return usage
 
@@ -298,6 +304,7 @@ class AnalyticsActions:
             data = document.to_dict()
             outcome = data.get("outcome", ProductOutcome.active.value)
             reason = data.get("wasteReason")
+            items = data.get("quantity") or 1
 
             if outcome == ProductOutcome.active.value:
                 continue
@@ -305,11 +312,11 @@ class AnalyticsActions:
                 continue
 
             if outcome == ProductOutcome.wasted.value:
-                wasted += 1
+                wasted += items
                 if reason in AVOIDABLE_REASONS:
-                    avoidable += 1
+                    avoidable += items
             else:
-                consumed += 1
+                consumed += items
 
         return consumed, wasted, avoidable
 

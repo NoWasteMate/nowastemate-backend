@@ -45,11 +45,12 @@ def delete_product(product_id: str, user = Depends(authorization_actions.verify_
 def update_product(product_id: str, product: ProductUpdate, user = Depends(authorization_actions.verify_user_token)):
     return product_actions.update_product(user["uid"], product_id, product)
 
-# marks a product as consumed or wasted so it leaves the product list
+# marks all or part of a product as consumed or wasted; without quantity the whole product is marked
 # reference: https://firebase.google.com/docs/firestore/manage-data/add-data#update-data
+# reference: https://firebase.google.com/docs/firestore/manage-data/transactions#transactions
 @router.put("/markProductOutcome/{product_id}", tags=['Products'])
 def mark_product_outcome(product_id: str, body: ProductOutcomeUpdate, user = Depends(authorization_actions.verify_user_token)):
-    return product_actions.mark_product_outcome(user["uid"], product_id, body.outcome, body.wasteReason)
+    return product_actions.mark_product_outcome(user["uid"], product_id, body.outcome, body.wasteReason, body.quantity)
 
 # looks a barcode up on OpenFoodFacts and returns it as a Product without saving it.
 # path validations: https://fastapi.tiangolo.com/tutorial/path-params-numeric-validations/
