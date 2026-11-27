@@ -66,15 +66,13 @@ class ProductUpdate(BaseModel):
     quantity: Optional[ProductQuantity] = None
     category: Optional[ProductCategory] = None
     dateExpiration: Optional[datetime] = None
-    outcome: ProductOutcome
-    wasteReason: Optional[WasteReason] = None
-    quantity: Optional[ProductQuantity] = None
     #dateRemoved: Optional[str] = None
     #usedInRecipe: Optional[str] = None
 
 class ProductOutcomeUpdate(BaseModel):
     outcome: ProductOutcome
     wasteReason: Optional[WasteReason] = None
+    quantity: Optional[ProductQuantity] = None
 
 class ProductList(BaseModel):
     products: list[Product]
