@@ -225,7 +225,8 @@ class ProductActions:
 
     # marking a product as consumed or wasted (analytics)
     # reference: https://firebase.google.com/docs/firestore/manage-data/add-data#server_timestamp
-    def mark_product_outcome(self, uid: str, product_id: str, outcome: ProductOutcome, waste_reason: Optional[WasteReason] = None):
+    # reference: https://firebase.google.com/docs/firestore/manage-data/transactions#python
+    def mark_product_outcome(self, uid: str, product_id: str, outcome: ProductOutcome, waste_reason: Optional[WasteReason] = None, quantity: Optional[int] = None):
 
         # user can only mark consumed or wasted
         if outcome not in (ProductOutcome.consumed, ProductOutcome.wasted):
@@ -238,36 +239,47 @@ class ProductActions:
         if outcome == ProductOutcome.consumed and waste_reason is not None:
             raise HTTPException(status_code=422, detail="Waste reason is only allowed when marking wasted")
 
-        # product_ref = (
-        #     store.collection("users")
-        #     .document(uid)
-        #     .collection("products")
-        #     .document(product_id)
-        # )
-
+    
         product_ref = self.find_product_ref(uid, product_id)
 
-        product = product_ref.get()
-
-        if not product.exists:
-            raise HTTPException(status_code=404, detail="Product Not Found")
-
-        # the product's outcome can only be changed once
-        if product.to_dict().get("outcome", ProductOutcome.active.value) != ProductOutcome.active.value:
-            raise HTTPException(status_code=409, detail="Product Already Marked")
-
-        product_ref.update({
+        outcome_fields = {
             "outcome": outcome.value,
             "outcomeAt": firestore.SERVER_TIMESTAMP,
             "wasteReason": waste_reason.value if waste_reason else None
-        })
+        }
+
+        # reading, check and write together so two family members can't mark the same units
+        # https://firebase.google.com/docs/firestore/manage-data/transactions#python
+        @firestore.transactional
+        def mark(transaction):
+            data = product_ref.get(transaction=transaction).to_dict()
+
+            if data.get("outcome", ProductOutcome.active.value) != ProductOutcome.active.value:
+                raise HTTPException(status_code=409, detail="Product Already Marked")
+
+            quantity_left = data.get("quantity") or 1
+            quantity_marked = quantity or quantity_left
+
+            if quantity_marked > quantity_left:
+                raise HTTPException(status_code=422, detail="Quantity is more than what is left")
+
+            if quantity_marked == quantity_left:
+                transaction.update(product_ref, outcome_fields)
+            else:
+                # the product logged keeps what is left, a copy of it holds the marked units
+                transaction.update(product_ref, {"quantity": quantity_left - quantity_marked})
+                transaction.set(product_ref.parent.document(), {**data, "quantity": quantity_marked, **outcome_fields, "splitFrom": product_id})
+
+            return quantity_left - quantity_marked
+
+        quantity_remaining = mark(store.transaction())
 
         # the product can belong to another family member, so their counts are refreshed
         # This find the uid of the user who owns the product
         owner_uid = product_ref.parent.parent.id
         analytics_actions.refresh_user_counts(owner_uid)
 
-        return {"id": product_id, "outcome": outcome.value, "wasteReason": waste_reason.value if waste_reason else None, "message": "Product Marked"}
+        return {"id": product_id, "outcome": outcome.value, "wasteReason": waste_reason.value if waste_reason else None, "remainingQuantity": quantity_remaining, "message": "Product Marked"}
 
     # barcode methods
     # maps OFF's categories_tags to one of our ProductCategory values.
