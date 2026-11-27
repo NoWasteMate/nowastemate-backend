@@ -307,12 +307,18 @@ class ProductActions:
         except openfoodfacts.BarcodeUpstreamError:
             raise HTTPException(status_code=502, detail="Barcode service unavailable")
 
+        product_name = raw.get("product_name") or ""
+        categories_tags = raw.get("categories_tags")
+        product_type, product_type_source = normalize_name(product_name, categories_tags)
+
         return Product(
-            name=raw.get("product_name") or "",
+            name=product_name,
             quantity=1,
             createdAt=datetime.now(timezone.utc).isoformat(),
-            category=self.map_category(raw.get("categories_tags")),
-            categoryTags=raw.get("categories_tags"),
+            category=self.map_category(categories_tags),
+            productType=product_type,
+            productTypeSource=product_type_source,
+            categoryTags=categories_tags,
         )
 
     # allergens and diet flags left out until the app needs them
@@ -331,6 +337,13 @@ class ProductActions:
             })
 
         return {"version": VERSION, "types": types}
+
+    def resolve_product_type(self, name: str, category_tags: Optional[list[str]] = None):
+        product_type, product_type_source = normalize_name(name, category_tags)
+        return {
+            "productType": product_type,
+            "productTypeSource": product_type_source,
+        }
     
     #TODO: Further logic could be implemented to use previous waste reasons 
     #ref timezones https://stackoverflow.com/questions/55714631/firestore-timestamp-fromdate-not-utc
